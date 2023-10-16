@@ -15,7 +15,8 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@knoware/machines": ["machines/src/index.ts"]
+      "@knoware/machines": ["machines/src/index.ts"],
+      "@knoware/other-lib": ["other-lib/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
