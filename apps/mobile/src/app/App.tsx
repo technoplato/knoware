@@ -51,7 +51,7 @@ export const App = () => {
                   />
                 </Svg>
                 <Text style={[styles.textLg, styles.heroTitleText]}>
-                  You're up and running
+                  you're down and out
                 </Text>
               </View>
               <TouchableOpacity
