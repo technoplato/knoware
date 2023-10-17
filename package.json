@@ -96,6 +96,7 @@
     "@nx/expo": "^17.0.0-beta.6",
     "@statelyai/sky": "^0.0.4",
     "@statelyai/sky-react": "^0.0.4",
+    "event-target-shim": "^6.0.2",
     "expo": "49.0.10",
     "expo-splash-screen": "~0.20.5",
     "expo-status-bar": "~1.6.0",
