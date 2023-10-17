@@ -2,7 +2,10 @@
   "name": "@knoware/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "nx:graph": "npx nx graph",
+    "nx:graph:json": "nx graph --file=project.graph.json"
+  },
   "private": true,
   "dependencies": {},
   "devDependencies": {
