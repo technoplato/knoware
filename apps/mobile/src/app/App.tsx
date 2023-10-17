@@ -1,6 +1,7 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
 import React, { useRef } from 'react';
 import {
+  Button,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -63,9 +64,18 @@ const GoodStuff = () => {
     <View style={styles.section}>
       <Text style={styles.textLg}>
         Are you ready to learn about Stately Sky? Are you ready to learn about
-        Stately Sky?asdfr__asdf
+        Stately Sky?asdfr__asdfhhh
       </Text>
       <Text>{JSON.stringify(snapshot, null, 2)}</Text>
+      {snapshot.nextEvents.map((event) => {
+        return (
+          <Button
+            onPress={() => send({ type: event })}
+            title={event}
+            key={event}
+          />
+        );
+      })}
     </View>
   );
 };
