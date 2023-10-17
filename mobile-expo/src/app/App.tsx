@@ -64,7 +64,7 @@ export const App = () => {
                 }}
               >
                 <Text style={[styles.textMd, styles.textCenter]}>
-                  What's next?
+                  What's after?
                 </Text>
               </TouchableOpacity>
             </View>
