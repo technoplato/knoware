@@ -1,3 +1,3 @@
 export function machines(): string {
-  return 'machines';
+  return 'this even hot updates from a running android app';
 }
