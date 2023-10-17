@@ -1,4 +1,5 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
+import { machines } from '@knoware/machines';
 import React, { useRef, useState } from 'react';
 import {
   Linking,
@@ -30,7 +31,8 @@ export const App = () => {
           <View style={styles.section}>
             <Text style={styles.textLg}>Hello there,</Text>
             <Text style={[styles.textXL, styles.appTitleText]} testID="heading">
-              FastRefresh? Welcome MobileExpo 👋
+              FastRefresh? Welcome MobileExpo 👋 expo
+              {machines()}
             </Text>
           </View>
           <View style={styles.section}>
@@ -64,7 +66,7 @@ export const App = () => {
                 }}
               >
                 <Text style={[styles.textMd, styles.textCenter]}>
-                  What's after?
+                  What's after? What's machines? ===
                 </Text>
               </TouchableOpacity>
             </View>
