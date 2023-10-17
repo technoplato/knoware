@@ -16,7 +16,9 @@
     "react": "*",
     "expo-splash-screen": "~0.20.5",
     "expo-status-bar": "~1.6.0",
-    "@babel/core": "*"
+    "@babel/core": "*",
+    "xstate": "*",
+    "@statelyai/sky-react": "*"
   },
   "scripts": {
     "eas-build-pre-install": "cd ../ && node tools/scripts/eas-build-pre-install.mjs . mobile-expo && cp package-lock.json mobile-expo",
