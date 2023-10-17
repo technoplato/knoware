@@ -53,7 +53,7 @@ export const App = () => {
                   />
                 </Svg>
                 <Text style={[styles.textLg, styles.heroTitleText]}>
-                  you're down and __out ({machines()})
+                  you're down and ({machines()})
                 </Text>
               </View>
               <TouchableOpacity
