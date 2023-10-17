@@ -48,7 +48,9 @@
       "application": {
         "babel": true
       },
-      "library": {}
+      "library": {
+        "unitTestRunner": "vitest"
+      }
     },
     "@nx/next": {
       "application": {
