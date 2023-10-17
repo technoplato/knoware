@@ -18,7 +18,13 @@
     "expo-status-bar": "~1.6.0",
     "@babel/core": "*",
     "xstate": "*",
-    "@statelyai/sky-react": "*"
+    "@statelyai/sky-react": "*",
+    "@testing-library/react": "*",
+    "event-target-shim": "*",
+    "vite": "*",
+    "@vitejs/plugin-react": "*",
+    "vite-plugin-dts": "*",
+    "@nx/vite": "*"
   },
   "scripts": {
     "eas-build-pre-install": "cd ../ && node tools/scripts/eas-build-pre-install.mjs . mobile-expo && cp package-lock.json mobile-expo",

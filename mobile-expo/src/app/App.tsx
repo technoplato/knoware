@@ -1,5 +1,4 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
-import { useFoo } from '@knoware/sky-machines';
 import React, { useRef } from 'react';
 import {
   SafeAreaView,
@@ -9,10 +8,72 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSkyLightMachine } from '@knoware/sky-machines';
+import { Event, EventTarget } from 'event-target-shim';
+import { useEffect, useState } from 'react';
+export const useEnsureEventShimsAreLoaded = () => {
+  const [shimIsSet, setShimIsSet] = useState(
+    [globalThis.Event, globalThis.EventTarget].every(
+      (requiredGlobal) => requiredGlobal !== undefined
+    )
+  );
+
+  useEffect(() => {
+    if (shimIsSet) {
+      return;
+    }
+
+    if (!globalThis.Event) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      globalThis.Event = Event;
+    }
+
+    if (!globalThis.EventTarget) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      globalThis.EventTarget = EventTarget;
+    }
+
+    if (!globalThis.EventTarget || !globalThis.Event) {
+      throw new Error(
+        'Event Target or Event not set properly and everything is gonna suck'
+      );
+    }
+    console.log(globalThis.EventTarget);
+    console.log(globalThis.Event);
+    setShimIsSet(true);
+  }, [shimIsSet]);
+
+  return shimIsSet;
+};
+
+const Loading = () => {
+  return (
+    <View style={styles.section}>
+      <Text>loading</Text>
+    </View>
+  );
+};
+
+const GoodStuff = () => {
+  useSkyLightMachine();
+  return (
+    <View style={styles.section}>
+      <Text style={styles.textLg}>
+        Are you ready to learn about Stately Sky? Are you ready to learn about
+        Stately Sky?
+      </Text>
+    </View>
+  );
+};
 
 export const App = () => {
   const scrollViewRef = useRef<null | ScrollView>(null);
-  const [foo, setFoo] = useFoo();
+
+  const areShimsLoaded = useEnsureEventShimsAreLoaded();
+
+  const Content = areShimsLoaded ? GoodStuff : Loading;
 
   return (
     <>
@@ -26,11 +87,7 @@ export const App = () => {
           style={styles.scrollView}
         >
           <View style={styles.section}>
-            <Text style={styles.textLg}>
-              Are you ready to learn about Stately Sky? Are you ready to learn
-              about Stately Sky?
-            </Text>
-            <Text style={styles.textLg}>foo: {foo.toLocaleString()}</Text>
+            <Content />
           </View>
         </ScrollView>
       </SafeAreaView>

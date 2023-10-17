@@ -4,10 +4,10 @@ import { skyConfig } from './lights.sky';
 const skyurl = 'https://sky.stately.ai/5hIBJk';
 const sessionKey = 'shared';
 
-export const useFoo = () => {
+export const useSkyLightMachine = () => {
   const [snapshot, send, actor] = useStatelyActor(
     {
-      apiKey: 'sta_e922f7a4-809c-4eb0-8311-0a1142dd3c57',
+      apiKey: 'sta_d96b998f-86f5-42a3-bcc0-c7b364814644',
       url: skyurl,
       sessionId: sessionKey,
     },

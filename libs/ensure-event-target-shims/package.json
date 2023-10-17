@@ -1,7 +1,7 @@
 {
   "name": "@knoware/use-ensure-event-target-shims",
   "version": "0.0.1",
-  "main": "./index.js",
+  "main": "./src/index.ts",
   "types": "./index.d.ts",
   "exports": {
     ".": {
