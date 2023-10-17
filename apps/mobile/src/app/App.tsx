@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { machines } from '@knoware/machines';
+
 export const App = () => {
   const [whatsNextYCoord, setWhatsNextYCoord] = useState<number>(0);
   const scrollViewRef = useRef<null | ScrollView>(null);
@@ -51,7 +53,7 @@ export const App = () => {
                   />
                 </Svg>
                 <Text style={[styles.textLg, styles.heroTitleText]}>
-                  you're down and out
+                  you're down and out ({machines()})
                 </Text>
               </View>
               <TouchableOpacity
