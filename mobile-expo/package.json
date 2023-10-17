@@ -13,10 +13,18 @@
     "@nx/expo": "*",
     "@expo/metro-config": "*",
     "react-native-svg-transformer": "*",
-    "react": "*"
+    "react": "*",
+    "expo-splash-screen": "~0.20.5",
+    "expo-status-bar": "~1.6.0",
+    "@babel/core": "*"
   },
   "scripts": {
     "eas-build-pre-install": "cd ../ && node tools/scripts/eas-build-pre-install.mjs . mobile-expo && cp package-lock.json mobile-expo",
-    "eas-build-post-install": "cd ../ && node tools/scripts/eas-build-post-install.mjs . mobile-expo"
+    "eas-build-post-install": "cd ../ && node tools/scripts/eas-build-post-install.mjs . mobile-expo",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
   }
 }
