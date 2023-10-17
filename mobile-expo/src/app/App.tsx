@@ -1,4 +1,5 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
+import { useFoo } from '@knoware/sky-machines';
 import React, { useRef } from 'react';
 import {
   SafeAreaView,
@@ -11,6 +12,7 @@ import {
 
 export const App = () => {
   const scrollViewRef = useRef<null | ScrollView>(null);
+  const [foo, setFoo] = useFoo();
 
   return (
     <>
@@ -25,8 +27,10 @@ export const App = () => {
         >
           <View style={styles.section}>
             <Text style={styles.textLg}>
-              Are you ready to learn about Stately Sky?
+              Are you ready to learn about Stately Sky? Are you ready to learn
+              about Stately Sky?
             </Text>
+            <Text style={styles.textLg}>foo: {foo.toLocaleString()}</Text>
           </View>
         </ScrollView>
       </SafeAreaView>
