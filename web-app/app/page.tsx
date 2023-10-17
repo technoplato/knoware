@@ -20,7 +20,7 @@ export default async function Index() {
           <div id="welcome">
             <h1>
               <span> Hello there, </span>
-              Welcome web-app 👋
+              Welcome ---- web-app 👋
             </h1>
           </div>
 
