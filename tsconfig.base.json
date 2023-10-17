@@ -16,7 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "@knoware/machines": ["machines/src/index.ts"],
-      "@knoware/other-lib": ["other-lib/src/index.ts"]
+      "@knoware/other-lib": ["other-lib/src/index.ts"],
+      "@knoware/sky-machines": ["sky-machines/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
