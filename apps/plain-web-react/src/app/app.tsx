@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useSkyLightMachine } from '@knoware/sky-machines';
 import { useEnsureEventShimsAreLoaded } from '@knoware/use-ensure-event-target-shims';
 
@@ -13,6 +13,8 @@ const Loading = () => {
 
 const GoodStuff = () => {
   const [snapshot, send, actor] = useSkyLightMachine();
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const currentLightcolor = snapshot.value;
 
   return (
@@ -32,9 +34,13 @@ const GoodStuff = () => {
           flexDirection: 'column-reverse',
         }}
       >
+        {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+        {/* @ts-ignore*/}
         {snapshot.nextEvents.map((event) => (
           <button
             style={{ color: 'gray' }}
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             onClick={() => send({ type: event })}
             key={event}
           >

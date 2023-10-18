@@ -1,54 +1,15 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
-import React, { useRef } from 'react';
+import React from 'react';
 import {
   Button,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSkyLightMachine } from '@knoware/sky-machines';
-import { Event, EventTarget } from 'event-target-shim';
-import { useEffect, useState } from 'react';
 import { useEnsureEventShimsAreLoaded } from '@knoware/use-ensure-event-target-shims';
-// export const useEnsureEventShimsAreLoaded = () => {
-//   const [shimIsSet, setShimIsSet] = useState(
-//     [globalThis.Event, globalThis.EventTarget].every(
-//       (requiredGlobal) => requiredGlobal !== undefined
-//     )
-//   );
-//
-//   useEffect(() => {
-//     if (shimIsSet) {
-//       return;
-//     }
-//
-//     if (!globalThis.Event) {
-//       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-//       // @ts-ignore
-//       globalThis.Event = Event;
-//     }
-//
-//     if (!globalThis.EventTarget) {
-//       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-//       // @ts-ignore
-//       globalThis.EventTarget = EventTarget;
-//     }
-//
-//     if (!globalThis.EventTarget || !globalThis.Event) {
-//       throw new Error(
-//         'Event Target or Event not set properly and everything is gonna suck'
-//       );
-//     }
-//     console.log(globalThis.EventTarget);
-//     console.log(globalThis.Event);
-//     setShimIsSet(true);
-//   }, [shimIsSet]);
-//
-//   return shimIsSet;
-// };
 
 const Loading = () => {
   return (
@@ -60,6 +21,7 @@ const Loading = () => {
 
 const GoodStuff = () => {
   const [snapshot, send, actor] = useSkyLightMachine();
+  console.log({ snapshot, send, actor });
   const currentLightcolor = snapshot.value;
   return (
     <View style={{ height: 800, width: '100%' }}>
@@ -82,7 +44,7 @@ const GoodStuff = () => {
           return (
             <Button
               color={'gray'}
-              onPress={() => send({ type: event })}
+              onPress={() => send && send({ type: event })}
               title={event}
               key={event}
             />
