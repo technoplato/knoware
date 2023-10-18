@@ -81,7 +81,7 @@ const GoodStuff = () => {
         {snapshot.nextEvents.map((event) => {
           return (
             <Button
-              color={'white'}
+              color={'gray'}
               onPress={() => send({ type: event })}
               title={event}
               key={event}
