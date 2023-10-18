@@ -14,9 +14,5 @@ export const useSkyLightMachine = () => {
     skyConfig
   );
 
-  // const [state, setState] = React.useState(0);
-
-  // return [state, setState];
-
   return [snapshot, send, actor];
 };

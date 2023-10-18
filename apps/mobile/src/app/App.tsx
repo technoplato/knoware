@@ -60,50 +60,51 @@ const Loading = () => {
 
 const GoodStuff = () => {
   const [snapshot, send, actor] = useSkyLightMachine();
+  const currentLightcolor = snapshot.value;
   return (
-    <View style={styles.section}>
-      <Text style={styles.textLg}>
-        Are you ready to learn about Stately Sky? Are you ready to learn about
-        Stately Sky?asdfr__asdfhhh
-      </Text>
-      <Text>{JSON.stringify(snapshot, null, 2)}</Text>
-      {snapshot.nextEvents.map((event) => {
-        return (
-          <Button
-            onPress={() => send({ type: event })}
-            title={event}
-            key={event}
-          />
-        );
-      })}
+    <View style={{ height: 800, width: '100%' }}>
+      <View
+        style={{
+          width: '100%',
+          height: '50%',
+          backgroundColor: currentLightcolor,
+        }}
+      />
+      <View
+        style={{
+          flex: 0.7,
+          backgroundColor: 'black',
+          justifyContent: 'flex-start',
+          flexDirection: 'column-reverse',
+        }}
+      >
+        {snapshot.nextEvents.map((event) => {
+          return (
+            <Button
+              color={'white'}
+              onPress={() => send({ type: event })}
+              title={event}
+              key={event}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 export const App = () => {
-  const scrollViewRef = useRef<null | ScrollView>(null);
-
   const areShimsLoaded = useEnsureEventShimsAreLoaded();
 
   const Content = areShimsLoaded ? GoodStuff : Loading;
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: 'black' }}>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView>
-        <ScrollView
-          ref={(ref) => {
-            scrollViewRef.current = ref;
-          }}
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}
-        >
-          <View style={styles.section}>
-            <Content />
-          </View>
-        </ScrollView>
+        <Content />
       </SafeAreaView>
-    </>
+    </View>
   );
 };
 const styles = StyleSheet.create({
@@ -169,6 +170,8 @@ const styles = StyleSheet.create({
   section: {
     marginVertical: 24,
     marginHorizontal: 12,
+    flex: 1,
+    flexDirection: 'column',
   },
   shadowBox: {
     backgroundColor: 'white',
