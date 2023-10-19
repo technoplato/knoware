@@ -17,7 +17,7 @@
     "paths": {
       "@knoware/sky-machines": ["libs/react/sky-machines/src/index.ts"],
       "@knoware/use-ensure-event-target-shims": [
-        "libs/ensure-event-target-shims/src/index.ts"
+        "libs/react/use-ensure-event-target-shims/src/index.ts"
       ]
     }
   },
