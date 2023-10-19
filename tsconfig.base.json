@@ -15,7 +15,6 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@knoware/machines": ["machines/src/index.ts"],
       "@knoware/sky-machines": ["sky-machines/src/index.ts"],
       "@knoware/use-ensure-event-target-shims": [
         "libs/ensure-event-target-shims/src/index.ts"
