@@ -65,6 +65,9 @@
         "style": "styled-components",
         "linter": "eslint"
       }
+    },
+    "@nx/workspace:move": {
+      "projectNameAndRootFormat": "as-provided"
     }
   }
 }
