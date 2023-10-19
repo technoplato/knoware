@@ -1,7 +1,7 @@
 {
   "name": "mobile-expo",
-  "$schema": "../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "mobile-expo/src",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/mobile-expo/src",
   "projectType": "application",
   "targets": {
     "start": {
@@ -14,7 +14,7 @@
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "nx start mobile-expo"
+        "command": "nx start apps/mobile-expo"
       }
     },
     "run-ios": {
@@ -69,7 +69,7 @@
       "dependsOn": ["ensure-symlink", "sync-deps"],
       "options": {
         "platform": "all",
-        "outputDir": "../dist/mobile-expo"
+        "outputDir": "../../dist/apps/mobile-expo"
       }
     },
     "export-web": {
@@ -82,14 +82,14 @@
       "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["mobile-expo/**/*.{ts,tsx,js,jsx}"]
+        "lintFilePatterns": ["apps/mobile-expo/**/*.{ts,tsx,js,jsx}"]
       }
     },
     "test": {
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "jestConfig": "mobile-expo/jest.config.ts",
+        "jestConfig": "apps/mobile-expo/jest.config.ts",
         "passWithNoTests": true
       },
       "configurations": {

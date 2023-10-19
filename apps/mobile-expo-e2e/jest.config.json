@@ -1,5 +1,5 @@
 {
-  "preset": "../jest.preset",
+  "preset": "../../jest.preset",
   "rootDir": ".",
   "testMatch": [
     "<rootDir>/src/**/*.test.ts?(x)",

@@ -27,8 +27,8 @@
     "@nx/vite": "*"
   },
   "scripts": {
-    "eas-build-pre-install": "cd ../ && node tools/scripts/eas-build-pre-install.mjs . mobile-expo && cp package-lock.json mobile-expo",
-    "eas-build-post-install": "cd ../ && node tools/scripts/eas-build-post-install.mjs . mobile-expo",
+    "eas-build-pre-install": "cd ../../ && node tools/scripts/eas-build-pre-install.mjs . mobile-expo && cp package-lock.json mobile-expo",
+    "eas-build-post-install": "cd ../../ && node tools/scripts/eas-build-post-install.mjs . mobile-expo",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },

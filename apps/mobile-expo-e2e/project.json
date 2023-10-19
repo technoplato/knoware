@@ -1,7 +1,7 @@
 {
   "name": "mobile-expo-e2e",
-  "$schema": "../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "mobile-expo-e2e/src",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/mobile-expo-e2e/src",
   "projectType": "application",
   "targets": {
     "build-ios": {
@@ -22,16 +22,16 @@
       "executor": "@nx/detox:test",
       "options": {
         "detoxConfiguration": "ios.sim.local",
-        "buildTarget": "mobile-expo-e2e:build-ios"
+        "buildTarget": "apps/mobile-expo-e2e:build-ios"
       },
       "configurations": {
         "bare": {
           "detoxConfiguration": "ios.sim.debug",
-          "buildTarget": "mobile-expo-e2e:build-ios:bare"
+          "buildTarget": "apps/mobile-expo-e2e:build-ios:bare"
         },
         "production": {
           "detoxConfiguration": "ios.sim.release",
-          "buildTarget": "mobile-expo-e2e:build-ios:production"
+          "buildTarget": "apps/mobile-expo-e2e:build-ios:production"
         }
       }
     },
@@ -53,16 +53,16 @@
       "executor": "@nx/detox:test",
       "options": {
         "detoxConfiguration": "android.emu.local",
-        "buildTarget": "mobile-expo-e2e:build-android"
+        "buildTarget": "apps/mobile-expo-e2e:build-android"
       },
       "configurations": {
         "bare": {
           "detoxConfiguration": "android.emu.debug",
-          "buildTarget": "mobile-expo-e2e:build-android:bare"
+          "buildTarget": "apps/mobile-expo-e2e:build-android:bare"
         },
         "production": {
           "detoxConfiguration": "android.emu.release",
-          "buildTarget": "mobile-expo-e2e:build-android:production"
+          "buildTarget": "apps/mobile-expo-e2e:build-android:production"
         }
       }
     },
@@ -70,7 +70,7 @@
       "executor": "@nx/linter:eslint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["mobile-expo-e2e/**/*.{ts,tsx,js,jsx}"]
+        "lintFilePatterns": ["apps/mobile-expo-e2e/**/*.{ts,tsx,js,jsx}"]
       }
     }
   },
