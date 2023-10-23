@@ -3,6 +3,7 @@ import { createMachine } from 'xstate';
 
 const machine = createMachine(
   {
+    /** @xstate-layout N4IgpgJg5mDOIC5QBUBOBDAZpglgYwAIAZHKACwBcA6KVMMAOwGIBhM9BmAigewIE8wAGyE8A7gG0ADAF1EoAA49YOCjh4N5IAB6IAzAFYAbFT0B2A1IMAmACznzBvQBoQ-RNet6qZvXdtSAIxGRgCcZqFSZgC+0a5oWLiEJOTUgiLirOycYNx8dBDSckggSipqGlq6CAAcZjVUtgY1eqEhgQaB9S5uHl4+frYBwWERUbHxGNj4xKSUVAVZHFy8BLT0DEVaZarqmiXVdQ1NLW1GHV0tru61gaaeoV1Bj4GhBrFxIAw8EHBaCdNknMKNtlLtKgdEABaIzXaEmKSIpHI5ExT4ApKzVI0OiMUHlPZVRC2axwhCBGomaxGZoWKKIx62GoTEAYmYpebpURifHg-agaoGew+Fo1GqPUJ6KLBMnWIIDYxmCJmOxSPRDFlsoHYgq8ir8nSIQJSc5UaydPQ1amhewU2G9clinw0uqWMwMwJND7RIA */
     context: {
       timer: 0,
     },
