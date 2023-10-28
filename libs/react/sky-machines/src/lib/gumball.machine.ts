@@ -3,10 +3,12 @@ import { assign, createMachine } from 'xstate';
 
 const machine = createMachine(
   {
-    /** @xstate-layout N4IgpgJg5mDOIC5QHECuBbARgQwDa4AIBZbAYwAsBLAOzADoBJCXMAYgFVYwAnAh6rtwAusAgGEA9jQDaABgC6iUAAcJsSkMoTqSkAA9EARgBMAVjoA2UwA5rFgMz2ALMcOzXpgDQgAnomuGdPbGxgCchtbOhoZO9qGhAL4J3mhYeIQkFDT0TCwEAOoa5OJS1HxlAMq4EkIcggQAKqjcAuLc2NQA1nKKSCCq6praugYIpoYA7HSRjs72DqET7t5+CAFBIeHGAVYT86ZJKRg4+MRkVLR0AArcYAQ3EqRw6tRQBAAiYAMakCU0rJIaAQKqhSE9YLAAGaofA+D5fNQ-CA9XTfIY6PqjUxOax0eIhCyhOyhCyGCwWFaIOJTOKyBwmWShWSmUzGQ4gVInDLnbJ0BrcShQGC8TnpAgAJTALGwXFYotOkulXAgfHQ6EglGwQilPhRfTRWgxoFGZOMeNMSwmEyspkclLGplkdBipgsE3C9kdC3Z8u5WUuvoIADF0jQ3kJyNwJKgoMVyFLKHoCEJUJg4Nco+CXm9+dgAFZgUhCCTcHysTSkboKVGI9EjRCye2yH3HMWZC70K64bA+HiNZrURjMNiS1TCPUqWuG+sIAC0FlieLiYViDhZhntjjoslkE1ZVmMjOMSwO7OoEggcF0gfb2Rrg2nmMQs+sx7opiJhgtu9kMWM9tnSYnEsJwbCsQw4liY8nBbNJTlvS5cjAe8NEfY1EBce11icJlrCtd0cWtCY2WSDlW3gnlEOHAoij+Mp+GBaohBQusnwQewILoJxDFCbYJmsD8BJMJwsMCHDZDwtwLFkRwZMSUib0oztbnuTNnjDeE0V+QEjX6KdhjYi1NxcZ0cScJxd2sUInHJCZYK5M5-XoflBWFAhA0VMAZWQ-V9N0rFyWdEkZNfayLBCax7WxUJpgghdpN3bF3HstslLoQMQ3wDSIyjGM4wTJMUzTeBfIfAz0LnGIpgmCDnCtaTYl-CYALwjYwmMT1Xzw9x7BSiinPS8jCEy3BssjaNYwIeNRsK1N0weLMNNzAsixLVZJzK-zn3iOgascJx6tkRrJntPcYus21sRxL9JL6v0O2ubte14JoWhYtD9GfK0YsEr9LV-TDfGfD8uNfZk8PMqzQhZGCFKGxyHq7Hs+1ewckPe8rPrnPZAl+78lj-TdAmtY9HFsaxf3sCZYaOOD7t5JHnv7Fo6FoAB3AhYCELU7kMDGtrnVl7CXXjrPmT1xntN8dz3YwDyPJYLCSJIgA */
+    /** @xstate-layout N4IgpgJg5mDOIC5QHECuBbARgQwDa4AIBZbAYwAsBLAOzADoBJCXMAYgFVYwAnAh6rtwAusAgGEA9jQDaABgC6iUAAcJsSkMoTqSkAA9EARgBMAVjoA2UwA5rFgMz2ALMcOzXpgDQgAnomuGdPbGxgCchtbOhoZO9qGhAL4J3mhYeIQkFDT0TCwEAOoa5OJS1HxlAMq4EkIcggQAKqjcAuLc2NQA1nKKSCCq6praugYIpoYA7HSRjs72DqET7t5+CAFBIeHGAVYT86ZJKRg4+MRkVLR0AArcYAQ3EqRw6tRQBAAiYAMakCU0rJIaAQKqhSE9YLAAGaofA+D5fNQ-CA9XTfIY6PqjUxOax0eIhCyhOyhCyGCwWFaIOJTOKyBwmWShWSmUzGQ4gVInDLnbJ0BrcShQGC8TnpAgAJTALGwXFYotOkulXAgfHQ6EglGwQilPhRfTRWgxoFGZOMeNMSwmEyspkclLGplkdBipgsE3C9kdC3Z8u5WUuvoIADF0jQ3kJyNwJKgoMVyFLKHoCEJUJg4Nco+CXm9+dgAFZgUhCCTcHysTSkboKVGI9EjRCye2yH3HMWZC70K64bA+HiNZrURjMNgAQWo1Gj1CeBGU3d7vDTuEoYAAbnACFyCJRREDSCXbkWZ7XDXqVMfhpjEABaayLPFuYwTJysx3uUL2twWOjGKxOCy2exJgiWwWzSU5215Lsez7JoWiHFhWDHCdUCnO5Z2ghcE1XddN23Lcyj3bgDyEI9BhPQxejPMiL2Na9rAtOhZAiQC7CYolDHtcx3CccIWVJQxggtexQM3CDLig+d+zgsRyA6KAw3uOcYIHAFZNeO4JOUlpT36c8jX0a9ogEugJhsQxQliC0lnsax7Ufexv1kJ8YjCJ8SSSZIQAnCA4F0QMxLAGtqP00YrwZUITLMizPStWQbPtMKn0sZ9rBCNiLCciwRLbHlLlyQL9T0+sEBce11h42RrCtd0cWtCY2U8-zcpyYcCiKP4yn4YFqiEIKNENYrAIcpxzO2CZ6KJcZjCcMrAgqqrPzi+w4sSRrW3A5qMw0zNngUz40V+QF9INGiDLGCZ7WcM0YmsJwnCc28-zdbKNv9eh+UFYUCEDRUwBlAqqP606sXJZ0STi1KLIsEJbN8RBsQigJ5j-WQnOxdwXr9Ds6EDEN8AUiMoxjOMEyTFM03gQrguKsKnCmCYBOcK0MtiJiLrhhAbxpTZJgCerecxs43px9bCDxpdXmTSNo1jAh4yXMnU3TB4swU3MCyLEtVkButL05+ITMZunrVkVnJntUyIos21sRxQwbAZwWAuuJTeFg46ir1sKyUCUyAmiqyIYS1LvyJVHKosWJBKdzbNLdgd4IB3Tqa9twWTxBnM8q207opDn7CmU3HAidxxhMVajjArHINdqTBxkuSFLjuu+t12jOfowJoetVlwniJ92dWH8vzCRxTFCYxmXJYxhLWquhex-JZJIsV0PnURSA6AgIAkAgtT305NHVURCZl8hoxIiM7igbB1QIAAKZBqhOb7b7uABRNdqBEABKVuBtTvbcwVVXDTVsIsMu9p7pOEsDZAScVGR03CDHYWS996r1dhvLeO894r0PpQY+UsiaxgvlLa+b8H5PwkC-ZAFDP5gG-rAH+dAiDPGwDAe4UZ-7A0Mm4KYICTA4lvKZaIUDwjOkfISGwqMHD1Q8gkIAA */
     context: {
       timer: 0,
       timeDeltaMs: 100,
+      numberOfReportsPerTurn: 5,
+      reportsInThisTurn: 0,
       machine: {
         /*assume straight pipe for now, helix later*/ heightMeters: 10,
       },
@@ -17,7 +19,6 @@ const machine = createMachine(
       },
     },
     id: 'Gumball Machine',
-    initial: 'Idle',
     states: {
       Idle: {
         on: {
@@ -95,36 +96,75 @@ Problems that could occur here are the coin receptical down
         states: {
           Idle: {
             on: {
-              Report: 'new state 1',
+              'Announce player believes ball is in correct position': [
+                {
+                  cond: 'ifNotPlayerturnAnymore',
+                  target: 'Changing Player Turn',
+                },
+                {
+                  target: 'Idle',
+                  action: 'decrementRemainingReports',
+                },
+              ],
             },
           },
 
-          'new state 1': {},
+          'Changing Player Turn': {
+            on: {
+              'Change Player Turn': 'Idle',
+            },
+          },
         },
 
         initial: 'Idle',
       },
+
+      'What all players can do at all times throughout the game (Global Game Events)':
+        {
+          states: {
+            'Message Pro': {},
+          },
+
+          initial: 'Message Pro',
+        },
     },
     types: {
       events: {} as
         | { type: 'Change to red' }
         | { type: 'Change to green' }
         | { type: 'tick' }
+        | { type: 'Report' }
         | { type: 'Change to yellow' },
 
       context: {} as {
         timer: number;
         timeDeltaMs: number;
+        players: [string, string];
+        currentPlayer: 1 | 2;
+        numberOfReportsPerTurn: number;
+        reportsInThisTurn: number;
         machine: number;
+
         heightMeters: number;
         gumball: { velocity: number; distanceFallen: number };
       },
     },
+    type: 'parallel',
   },
   {
-    actions: {},
+    actions: {
+      decrementRemainingReports: (ctx, event) => {
+        // TODO: do something with ctx and event
+        return ctx;
+      },
+    },
     actors: {},
-    guards: {},
+    guards: {
+      ifNotPlayerturnAnymore: (ctx, event) => {
+        // TODO: do something with ctx and event
+        return false;
+      },
+    },
     delays: {},
   }
 );
