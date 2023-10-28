@@ -1,5 +1,5 @@
 import styles from './bc-scene.module.css';
-import { BubbleScene } from './from-examples/Examples';
+import { BcCopyTjScene } from './copy-tj/bc-copy-tj-scene';
 
 /* eslint-disable-next-line */
 export interface BcSceneProps {}
@@ -7,8 +7,7 @@ export interface BcSceneProps {}
 export function BcScene(props: BcSceneProps) {
   return (
     <div className={styles['container']}>
-      <h1>Welcome to BcScene!</h1>
-      <BubbleScene />
+      <BcCopyTjScene />
     </div>
   );
 }
