@@ -1,6 +1,19 @@
 import { Canvas, ThreeElements, useFrame } from '@react-three/fiber';
+import { useActor } from '@xstate/react';
 import { useRef, useState } from 'react';
 import * as THREE from 'three';
+import { machine } from './bc-scene/copy-tj/traffic-light.machine';
+
+const useTrafficLightController = () => {
+  const [snapshot, send, actor] = useActor(machine);
+  //   console.log(snapshot);
+  console.log(snapshot.value);
+  return {
+    colors: ['green', 'yellow', 'red'].map((color) => {
+      return snapshot.value.toLowerCase() === color ? color : 'black';
+    }),
+  };
+};
 
 function TrafficLight(props: ThreeElements['mesh']) {
   const ref = useRef<THREE.Mesh>(null!);
