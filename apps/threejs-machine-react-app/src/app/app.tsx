@@ -1,3 +1,4 @@
+import BcScene from '../scenes/bc-scene/bc-scene';
 import { TjScene } from '../scenes/tj-scene';
 
 export function App() {
@@ -10,6 +11,7 @@ export function App() {
 
       <div>
         <h1> bc SCENE</h1>
+        <BcScene />
       </div>
     </div>
   );
