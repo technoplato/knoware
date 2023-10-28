@@ -82,6 +82,7 @@
     "metro-resolver": "0.76.7",
     "nx": "16.10.0",
     "nx-cloud": "latest",
+    "nx-ngrok": "^1.2.1",
     "prettier": "^2.6.2",
     "react-native-svg": "13.9.0",
     "react-native-svg-transformer": "1.0.0",
