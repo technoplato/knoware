@@ -106,6 +106,7 @@
     "@statelyai/sky": "^0.0.4",
     "@statelyai/sky-react": "^0.0.4",
     "@swc/helpers": "~0.5.2",
+    "@types/three": "^0.158.0",
     "event-target-shim": "^6.0.2",
     "expo": "49.0.10",
     "expo-splash-screen": "~0.20.5",
