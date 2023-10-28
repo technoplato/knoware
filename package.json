@@ -100,6 +100,8 @@
   "dependencies": {
     "@expo/metro-config": "~0.10.7",
     "@nx/expo": "^17.0.0-beta.6",
+    "@react-three/drei": "^9.88.7",
+    "@react-three/fiber": "^8.15.8",
     "@statelyai/sky": "^0.0.4",
     "@statelyai/sky-react": "^0.0.4",
     "@swc/helpers": "~0.5.2",
@@ -114,6 +116,7 @@
     "react-native": "0.72.4",
     "react-native-web": "~0.19.8",
     "styled-components": "5.3.6",
+    "three": "^0.158.0",
     "tslib": "^2.3.0"
   }
 }
