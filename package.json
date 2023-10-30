@@ -108,7 +108,8 @@
     "@statelyai/sky-react": "^0.0.4",
     "@swc/helpers": "~0.5.2",
     "@types/three": "^0.158.0",
-    "event-target-shim": "^6.0.2",
+    "@xstate/react": "^4.0.0-beta.10",
+    "event-target-shim": "6.0.2",
     "expo": "49.0.10",
     "expo-splash-screen": "~0.20.5",
     "expo-status-bar": "~1.6.0",
@@ -120,6 +121,7 @@
     "react-native-web": "~0.19.8",
     "styled-components": "5.3.6",
     "three": "^0.158.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "xstate": "^5.0.0-beta.38"
   }
 }
