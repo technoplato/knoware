@@ -1,13 +1,14 @@
 import { useActor } from '@xstate/react';
 import { assign, createMachine } from 'xstate';
 
+import React, { useEffect } from 'react';
 import { InspectionEvent } from 'xstate/dist/declarations/src/system';
 import { savedEventsFromLastMain } from './sideEffects/logsFromMainRun';
 import { SlimSnapshot } from './types';
 
 export const j = (s) => JSON.stringify(s, null, 2);
 export const lj = (o) => {
-  console.warn(j(o));
+  console.log(j(o));
 };
 
 const increment = ({ context }) => context.count + 1;
@@ -134,13 +135,24 @@ const replaySnapshotMachine = createMachine({
 
 export const machine = replaySnapshotMachine;
 // export const machine = countMachine;
+const addEvent = async (event: InspectionEvent) => {
+  await localStorage.setItem('lastEvent', JSON.stringify(event));
+  const foo = await localStorage.getItem('lastEvent');
+  console.log({ foo });
+};
 
 export const useOurActor = () => {
-  // const [loggedEvents, setLoggedEvents] = React.useState<InspectionEvent[]>([]);
+  const [loggedEvents, setLoggedEvents] = React.useState<InspectionEvent[]>([]);
+  useEffect(() => {
+    return () => {
+      // lj(loggedEvents);
+    };
+  }, [loggedEvents]);
 
   const [snapshot, send, actor] = useActor(machine, {
-    inspect: (inspectionEvent) => {
+    inspect: async (inspectionEvent) => {
       if (inspectionEvent.type === '@xstate.snapshot') {
+        addEvent(inspectionEvent);
         // setLoggedEvents((eventsDraft) => eventsDraft.concat(inspectionEvent));
       }
     },
