@@ -3,13 +3,15 @@ import React from 'react';
 import {
   Button,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSkyLightMachine } from '@knoware/sky-machines';
-import { useEnsureEventShimsAreLoaded } from '@knoware/use-ensure-event-target-shims';
+import { useOurActor } from '../stuffFromViteDemo/machines';
+// import { useSkyLightMachine } from '@knoware/sky-machines';
+// import { useEnsureEventShimsAreLoaded } from '@knoware/use-ensure-event-target-shims';
 
 const Loading = () => {
   return (
@@ -20,9 +22,10 @@ const Loading = () => {
 };
 
 const GoodStuff = () => {
-  const [snapshot, send, actor] = useSkyLightMachine();
-  console.log({ snapshot, send, actor });
-  const currentLightcolor = snapshot.value;
+  // const [snapshot, send, actor] = useSkyLightMachine();
+  // console.log({ snapshot, send, actor });
+  // const currentLightcolor = snapshot.value;
+  const currentLightcolor = 'red';
   return (
     <View style={{ height: 800, width: '100%' }}>
       <View
@@ -56,15 +59,32 @@ const GoodStuff = () => {
 };
 
 export const App = () => {
-  const areShimsLoaded = useEnsureEventShimsAreLoaded();
+  // const areShimsLoaded = useEnsureEventShimsAreLoaded();
 
-  const Content = areShimsLoaded ? GoodStuff : Loading;
+  // const Content = areShimsLoaded ? GoodStuff : Loading;
+  // const { snapshot, send, actor, events } = useOurActor();
+  const { snapshot, context, events, send } = useOurActor();
 
   return (
-    <View style={{ flex: 1, backgroundColor: 'black' }}>
+    <View style={{ flex: 1 }}>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView>
-        <Content />
+        <View>
+          {events.map((event) => {
+            return (
+              <Button
+                color={'gray'}
+                onPress={() => send(event)}
+                title={event.type}
+                key={event.type}
+                disabled={event.disabled}
+              />
+            );
+          })}
+        </View>
+        <ScrollView>
+          <Text>{JSON.stringify({ current: context }, null, 2)}</Text>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );

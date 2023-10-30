@@ -19,6 +19,7 @@
     "event-target-shim": "*",
     "@testing-library/react": "*",
     "@vitejs/plugin-react": "*",
-    "vite-plugin-dts": "*"
+    "vite-plugin-dts": "*",
+    "@xstate/react": "*"
   }
 }
