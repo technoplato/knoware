@@ -94,12 +94,6 @@ const replaySnapshotMachine = createMachine(
             src: 'loadLogs',
             onDone: {
               target: 'active',
-              // actions: (onDoneSomething) => {
-              //   lj({ onDoneSomething });
-              //   return assign((onDoneAssignSomething) => ({
-              //     foo: 'onDoneSomething',
-              //   }));
-              // },
               actions: 'assignSavedEventsFromLastSession',
             },
 

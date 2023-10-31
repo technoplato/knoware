@@ -92,7 +92,16 @@ export const App = () => {
         <ScrollView>
           <Text>{snapshot.value}</Text>
           <Button onPress={() => clearEvents()} title="Clear Events" />
-          <Text>{JSON.stringify({ current: snapshot.context }, null, 2)}</Text>
+          <Text>
+            {JSON.stringify(
+              {
+                current: snapshot.context.currentSnapshot || 'no snapshot',
+                count: snapshot.context.count || 'no count',
+              },
+              null,
+              2
+            )}
+          </Text>
           {/* <Text>{JSON.stringify({ loggedEvents }, null, 2)}</Text> */}
         </ScrollView>
       </SafeAreaView>
