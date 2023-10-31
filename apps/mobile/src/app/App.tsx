@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Button,
   SafeAreaView,
@@ -63,13 +63,20 @@ export const App = () => {
 
   // const Content = areShimsLoaded ? GoodStuff : Loading;
   // const { snapshot, send, actor, events } = useOurActor();
-  const { snapshot, context, events, send } = useOurActor();
+  const { snapshot, context, events, send, clearEvents } = useOurActor();
+  useEffect(() => {
+    return () => {
+      // clearEvents();
+    };
+  }, [clearEvents]);
 
   return (
     <View style={{ flex: 1 }}>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView>
-        <View>
+        <View
+          style={{ flexDirection: 'row', borderColor: 'black', borderWidth: 1 }}
+        >
           {events.map((event) => {
             return (
               <Button
@@ -83,7 +90,10 @@ export const App = () => {
           })}
         </View>
         <ScrollView>
-          <Text>{JSON.stringify({ current: context }, null, 2)}</Text>
+          <Text>{snapshot.value}</Text>
+          <Button onPress={() => clearEvents()} title="Clear Events" />
+          <Text>{JSON.stringify({ current: snapshot.context }, null, 2)}</Text>
+          {/* <Text>{JSON.stringify({ loggedEvents }, null, 2)}</Text> */}
         </ScrollView>
       </SafeAreaView>
     </View>
