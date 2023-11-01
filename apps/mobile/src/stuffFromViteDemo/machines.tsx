@@ -15,17 +15,10 @@ const increment = ({ context }) => context.count + 1;
 const decrement = ({ context }) => context.count - 1;
 
 const hasMoreReplayableActions = ({ context }) => {
-  lj({
-    i: context.replayIndex,
-    savedEventsFromLastMainLength: context.savedEventsFromLastMain.length,
-  });
-  return context.replayIndex < context.savedEventsFromLastMain.length;
+  return context.replayIndex < context.savedEventsFromLastMain.length - 1;
 };
 
 const hasPreviousReplayableActions = ({ context }) => 0 < context.replayIndex;
-
-const incrementReplayIndex = ({ context }) => context.replayIndex + 1;
-const decrementReplayIndex = ({ context }) => context.replayIndex - 1;
 
 const countMachine = createMachine({
   initial: 'active',
@@ -50,29 +43,33 @@ const countMachine = createMachine({
 const StartingIndex = 0;
 
 const convertInspectEventToSlimEvent = (
-  event: InspectionEvent
+  event: TimedInspectionEvent
 ): SlimSnapshot => {
   // return event as SlimSnapshot;
   return {
     type: event.event.type,
     context: event.snapshot.context,
+    timestamp: event.timestamp,
+    index: event.index,
   };
 };
 
-const putEventsOnDiet = (events: InspectionEvent[]): Array<SlimSnapshot> => {
+const putEventsOnDiet = (
+  events: TimedInspectionEvent[]
+): Array<SlimSnapshot> => {
   const slimEvents: Array<SlimSnapshot> = events.map((event, idx) => {
-    const previous =
-      idx > 0 ? convertInspectEventToSlimEvent(events[idx - 1]) : undefined;
-    const next =
-      idx < events.length - 1
-        ? convertInspectEventToSlimEvent(events[idx + 1])
-        : undefined;
+    // const previous =
+    //   idx > 0 ? convertInspectEventToSlimEvent(events[idx - 1]) : undefined;
+    // const next =
+    //   idx < events.length - 1
+    //     ? convertInspectEventToSlimEvent(events[idx + 1])
+    //     : undefined;
     const slimEvent = convertInspectEventToSlimEvent(event);
 
     return {
       ...slimEvent,
-      previous,
-      next,
+      // previous,
+      // next,
     };
   });
   return slimEvents;
@@ -101,11 +98,6 @@ const replaySnapshotMachine = createMachine(
           },
         ],
       },
-      evaluate: {
-        entry: (thing) => {
-          // k({ thing });
-        },
-      },
 
       error: {
         entry: (stuff) => {
@@ -114,7 +106,7 @@ const replaySnapshotMachine = createMachine(
       },
       active: {
         on: {
-          // Next and prev will allow user to page through savedEventsFromLastMain
+          // // Next and prev will allow user to page through savedEventsFromLastMain
           FIRST: {
             guard: hasPreviousReplayableActions,
             actions: [
@@ -124,27 +116,38 @@ const replaySnapshotMachine = createMachine(
               })),
             ],
           },
+
           PREV: {
             guard: hasPreviousReplayableActions,
             actions: [
-              assign(({ context }) => ({
-                currentSnapshot:
-                  context.savedEventsFromLastMain[context.replayIndex],
-              })),
-
-              assign({ replayIndex: decrementReplayIndex }),
+              assign(({ context }) => {
+                const decrementedIndex = context.replayIndex - 1;
+                return {
+                  replayIndex: decrementedIndex,
+                  currentSnapshot:
+                    context.savedEventsFromLastMain[decrementedIndex],
+                };
+              }),
+              // assign({ replayIndex: decrementReplayIndex }),
+              // assign(({ context }) => ({
+              //   currentSnapshot:
+              //     context.savedEventsFromLastMain[context.replayIndex],
+              // })),
             ],
           },
           NEXT: {
             guard: hasMoreReplayableActions,
-            actions: [
-              assign(({ context }) => ({
-                currentSnapshot:
-                  context.savedEventsFromLastMain[context.replayIndex],
-              })),
-              assign({ replayIndex: incrementReplayIndex }),
-            ],
+            actions: assign(({ context }) => {
+              const incrementedIndex = context.replayIndex + 1;
+              const incrementedSnapshot =
+                context.savedEventsFromLastMain[incrementedIndex];
+              return {
+                replayIndex: incrementedIndex,
+                currentSnapshot: incrementedSnapshot,
+              };
+            }),
           },
+
           LAST: {
             guard: hasMoreReplayableActions,
             actions: [
@@ -153,7 +156,7 @@ const replaySnapshotMachine = createMachine(
                   context.savedEventsFromLastMain[
                     context.savedEventsFromLastMain.length - 1
                   ],
-                replayIndex: context.savedEventsFromLastMain.length,
+                replayIndex: context.savedEventsFromLastMain.length - 1,
               })),
             ],
           },
@@ -184,6 +187,7 @@ const replaySnapshotMachine = createMachine(
 );
 
 const doingReplay = true;
+
 export const machine = doingReplay ? replaySnapshotMachine : countMachine;
 
 const key = 'latestEvents';
@@ -194,7 +198,11 @@ export const useOurActor = () => {
         return;
       }
       if (inspectionEvent.type === '@xstate.snapshot') {
-        await logStorage.append(inspectionEvent);
+        // if (inspectionEvent.event.type.startsWith('xstate.')) return;
+        // if (inspectionEvent.event.type === '*') return;
+        // TODO: periodic sync to firebase storage for example
+        // or utilize websockets in lower envs
+        await logStorage.append({ ...inspectionEvent, timestamp: new Date() });
       }
     },
   });
@@ -217,6 +225,8 @@ export const useOurActor = () => {
 
       replayIndex: snapshot.context.replayIndex,
       currentSnapshot: snapshot.context.currentSnapshot,
+      numberReplayEventsTotal:
+        snapshot.context?.savedEventsFromLastMain?.length,
     },
     events,
     send,
@@ -240,21 +250,53 @@ const storage = {
   },
 };
 
+type TimedInspectionEvent = InspectionEvent & {
+  timestamp: string;
+  index: number;
+};
 const logKey = 'latestEvents';
 const logStorage = {
-  append: async function (inspectionEvent: InspectionEvent) {
+  append: async function (inspectionEvent: TimedInspectionEvent) {
     const previousLogs = JSON.parse(
       await storage.get(key, '[]')
-    ) as Array<InspectionEvent>;
+    ) as Array<TimedInspectionEvent>;
 
-    const newValue = [...previousLogs, inspectionEvent];
+    const newValue = [
+      ...previousLogs,
+      { ...inspectionEvent, index: previousLogs.length },
+    ];
 
     await storage.save(key, JSON.stringify(newValue));
   },
-  read: async function () {
+  read: async function (): Promise<Array<TimedInspectionEvent>> {
     const blobStr = await storage.get(logKey, '[]');
-    // lj(blobStr);
-    const logs = JSON.parse(blobStr);
+    // return [];
+    const logs: Array<TimedInspectionEvent> = JSON.parse(blobStr).map(
+      (event) => ({
+        ...event,
+        timestamp: new Date(event.timestamp),
+      })
+    );
+
+    return logs
+      .sort((a, b) => {
+        return a.index - b.index;
+      })
+      .map((l) => {
+        return {
+          ...l,
+          // format timestamp as mm:ss with padded single digit
+          // like 52:07
+          // or 06:01
+          timestamp: `${l.timestamp
+            .getMinutes()
+            .toString()
+            .padStart(2, '0')}:${l.timestamp
+            .getSeconds()
+            .toString()
+            .padStart(2, '0')}`,
+        };
+      });
     return logs;
   },
   clear: async function () {

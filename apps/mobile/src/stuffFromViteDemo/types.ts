@@ -3,13 +3,14 @@
 export type SlimSnapshot = {
   type: string;
   context: any;
+  timestamp: Date;
 
-  previous?: {
-    event?: SlimSnapshot;
-    context?: any;
-  };
-  next?: {
-    event?: SlimSnapshot;
-    context?: any;
-  };
+  // previous?: {
+  //   event?: SlimSnapshot;
+  //   context?: any;
+  // };
+  // next?: {
+  //   event?: SlimSnapshot;
+  //   context?: any;
+  // };
 };
