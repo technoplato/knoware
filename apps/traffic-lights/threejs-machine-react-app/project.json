@@ -1,0 +1,80 @@
+{
+  "name": "threejs-machine-react-app",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/traffic-lights/threejs-machine-react-app/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/traffic-lights/threejs-machine-react-app"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "threejs-machine-react-app:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "threejs-machine-react-app:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "threejs-machine-react-app:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "threejs-machine-react-app:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "threejs-machine-react-app:build:development"
+        },
+        "production": {
+          "buildTarget": "threejs-machine-react-app:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "passWithNoTests": true,
+        "reportsDirectory": "../../../coverage/apps/traffic-lights/threejs-machine-react-app"
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "apps/traffic-lights/threejs-machine-react-app/**/*.{ts,tsx,js,jsx}"
+        ]
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "threejs-machine-react-app:build"
+      }
+    }
+  },
+  "tags": []
+}

@@ -1,0 +1,35 @@
+{
+  "name": "threejs-machine-react-app-e2e",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/traffic-lights/threejs-machine-react-app-e2e/src",
+  "projectType": "application",
+  "targets": {
+    "e2e": {
+      "executor": "@nx/cypress:cypress",
+      "options": {
+        "cypressConfig": "apps/traffic-lights/threejs-machine-react-app-e2e/cypress.config.ts",
+        "devServerTarget": "threejs-machine-react-app:serve:development",
+        "testingType": "e2e"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "threejs-machine-react-app:serve:production"
+        },
+        "ci": {
+          "devServerTarget": "threejs-machine-react-app:serve-static"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "apps/traffic-lights/threejs-machine-react-app-e2e/**/*.{js,ts}"
+        ]
+      }
+    }
+  },
+  "tags": [],
+  "implicitDependencies": ["threejs-machine-react-app"]
+}
