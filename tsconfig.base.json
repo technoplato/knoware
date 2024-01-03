@@ -16,7 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@knoware/game/level-001": [
-        "libs/games/follow-directions/level-001/src/index.ts"
+        "libs/games/follow-directions/logic/level-001-logic/src/index.ts"
       ],
       "@knoware/sky-machines": [
         "libs/react/stately-sky/sky-machines/src/index.ts"
