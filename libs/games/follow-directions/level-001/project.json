@@ -1,0 +1,41 @@
+{
+  "name": "games-follow-directions-level-001",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/games/follow-directions/level-001/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/games/follow-directions/level-001",
+        "main": "libs/games/follow-directions/level-001/src/index.ts",
+        "tsConfig": "libs/games/follow-directions/level-001/tsconfig.lib.json",
+        "assets": ["libs/games/follow-directions/level-001/*.md"]
+      }
+    },
+    "publish": {
+      "command": "node tools/scripts/publish.mjs games-follow-directions-level-001 {args.ver} {args.tag}",
+      "dependsOn": ["build"]
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "libs/games/follow-directions/level-001/**/*.ts",
+          "libs/games/follow-directions/level-001/package.json"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "passWithNoTests": true,
+        "reportsDirectory": "../../../../coverage/libs/games/follow-directions/level-001"
+      }
+    }
+  },
+  "tags": []
+}

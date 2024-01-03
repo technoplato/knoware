@@ -15,6 +15,9 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@knoware/game/level-001": [
+        "libs/games/follow-directions/level-001/src/index.ts"
+      ],
       "@knoware/sky-machines": [
         "libs/react/stately-sky/sky-machines/src/index.ts"
       ],
