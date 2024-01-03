@@ -1,4 +1,4 @@
-# games-follow-directions-level-001
+# gamee-follow-directions-level-001
 
 This library was generated with [Nx](https://nx.dev).
 
