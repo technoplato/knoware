@@ -11,6 +11,8 @@ export const useSkyLightMachine = () => {
       url: skyurl,
       sessionId: sessionKey,
     },
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore TODO upgrade to stately sky whatever latest and fix
     skyConfig
   );
 

@@ -15,11 +15,12 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@knoware/sky-machines": ["libs/react/sky-machines/src/index.ts"],
-      "@knoware/use-ensure-event-target-shims": [
-        "libs/react/use-ensure-event-target-shims/src/index.ts"
+      "@knoware/sky-machines": [
+        "libs/react/stately-sky/sky-machines/src/index.ts"
       ],
-      "@knoware/use-hooks": ["libs/react/use-hooks/src/index.ts"]
+      "@knoware/use-ensure-event-target-shims": [
+        "libs/react/stately-sky/use-ensure-target-shims/src/index.ts"
+      ]
     }
   },
   "exclude": ["node_modules", "tmp"]

@@ -1,7 +1,7 @@
 {
   "name": "use-ensure-event-target-shims",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/react/use-ensure-event-target-shims/src",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/react/stately-sky/use-ensure-target-shims/src",
   "projectType": "library",
   "tags": [],
   "targets": {
@@ -10,7 +10,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": [
-          "libs/react/use-ensure-event-target-shims/**/*.{ts,tsx,js,jsx}"
+          "libs/react/stately-sky/use-ensure-target-shims/**/*.{ts,tsx,js,jsx}"
         ]
       }
     },
@@ -19,7 +19,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libs/react/use-ensure-event-target-shims"
+        "outputPath": "dist/libs/react/stately-sky/use-ensure-target-shims"
       },
       "configurations": {
         "development": {
@@ -35,7 +35,7 @@
       "outputs": ["{options.reportsDirectory}"],
       "options": {
         "passWithNoTests": true,
-        "reportsDirectory": "../../../coverage/libs/react/use-ensure-event-target-shims",
+        "reportsDirectory": "../../../../coverage/libs/react/stately-sky/use-ensure-target-shims",
         "watch": true
       }
     }

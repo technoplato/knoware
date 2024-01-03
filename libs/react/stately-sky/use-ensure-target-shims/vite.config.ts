@@ -5,7 +5,7 @@ import * as path from 'path';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
-  cacheDir: '../../../node_modules/.vite/use-hooks',
+  cacheDir: '../../../../node_modules/.vite/use-ensure-event-target-shims',
 
   plugins: [
     react(),
@@ -26,13 +26,13 @@ export default defineConfig({
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
     entry: 'src/index.ts',
-    name: 'use-hooks',
+    name: 'use-ensure-event-target-shims',
     fileName: 'index',
     formats: ['es', 'cjs'],
     external: ['react', 'react-dom', 'react/jsx-runtime'],
     lib: {
       entry: 'src/index.ts',
-      name: 'use-hooks',
+      name: 'use-ensure-event-target-shims',
       fileName: 'index',
       formats: ['es', 'cjs'],
     },
@@ -43,7 +43,7 @@ export default defineConfig({
 
   test: {
     globals: true,
-    cache: { dir: '../../../node_modules/.vitest' },
+    cache: { dir: '../../../../node_modules/.vitest' },
     environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
   },
