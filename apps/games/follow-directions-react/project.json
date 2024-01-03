@@ -1,0 +1,80 @@
+{
+  "name": "games--follow-directions-react",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/games/follow-directions-react/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/games/follow-directions-react"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "games--follow-directions-react:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "games--follow-directions-react:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "games--follow-directions-react:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "games--follow-directions-react:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "games--follow-directions-react:build:development"
+        },
+        "production": {
+          "buildTarget": "games--follow-directions-react:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "passWithNoTests": true,
+        "reportsDirectory": "../../../coverage/apps/games/follow-directions-react"
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "apps/games/follow-directions-react/**/*.{ts,tsx,js,jsx}"
+        ]
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "games--follow-directions-react:build"
+      }
+    }
+  },
+  "tags": []
+}

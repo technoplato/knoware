@@ -1,0 +1,35 @@
+{
+  "name": "games--follow-directions-react-e2e",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/games/follow-directions-react-e2e/src",
+  "projectType": "application",
+  "targets": {
+    "e2e": {
+      "executor": "@nx/cypress:cypress",
+      "options": {
+        "cypressConfig": "apps/games/follow-directions-react-e2e/cypress.config.ts",
+        "devServerTarget": "games--follow-directions-react:serve:development",
+        "testingType": "e2e"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "games--follow-directions-react:serve:production"
+        },
+        "ci": {
+          "devServerTarget": "games--follow-directions-react:serve-static"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "apps/games/follow-directions-react-e2e/**/*.{js,ts}"
+        ]
+      }
+    }
+  },
+  "tags": [],
+  "implicitDependencies": ["games--follow-directions-react"]
+}
