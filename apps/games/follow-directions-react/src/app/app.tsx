@@ -2,11 +2,13 @@
 import styles from './app.module.css';
 
 import NxWelcome from './nx-welcome';
+import Level001ReactComponent
+  from "../libs/games/follow-directions/ui/react/level-001/level-001-react-component/level-001-react-component";
 
 export function App() {
   return (
     <div>
-      <NxWelcome title="games--follow-directions-react" />
+      <Level001ReactComponent/>
     </div>
   );
 }

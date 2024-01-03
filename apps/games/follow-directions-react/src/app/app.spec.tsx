@@ -10,6 +10,6 @@ describe('App', () => {
 
   it('should have a greeting as the title', () => {
     const { getByText } = render(<App />);
-    expect(getByText(/Welcome games--follow-directions-react/gi)).toBeTruthy();
+    expect(getByText(/Welcome to Level001ReactComponent!/gi)).toBeTruthy();
   });
 });
