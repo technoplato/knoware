@@ -3,6 +3,13 @@ import { createMachine, createActor, SimulatedClock } from 'xstate';
 
 const level001LogicMachine = createMachine({
   meta: {
+    chat: {
+      private: 'https://chat.openai.com/c/8d465ffd-ba0a-4f02-ad99-5cb42e099ec1',
+      public: {
+        '73ca418081051789bb066f6eddba81646a789524':
+          'https://chat.openai.com/share/79d82d80-93b0-4af7-99c0-bf15b4f36cc2',
+      },
+    },
     translations: {
       en: {
         title: 'Level 001',
