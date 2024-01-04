@@ -44,7 +44,7 @@ const level001LogicMachine = createMachine({
     RestartCountdown: {
       description: `
 This intermediate step is required from our observation that if you attempt to
-transition back to Countodwn from Reset, something funky happens and the timeout
+transition back to Countdown from Reset, something funky happens and the timeout
 no longer works as expected.
       `,
       always: { target: 'Countdown' },
