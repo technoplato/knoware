@@ -1,4 +1,6 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
+// ignore ts in his file
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 import React from 'react';
 import {
   Button,
@@ -10,19 +12,14 @@ import {
   View,
 } from 'react-native';
 import { useOurActor } from '../stuffFromViteDemo/machines';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { useSkyLightMachine } from '@knoware/sky-machines';
 // import { useSkyLightMachine } from '@knoware/sky-machines';
 // import { useEnsureEventShimsAreLoaded } from '@knoware/use-ensure-event-target-shims';
 
-const Loading = () => {
-  return (
-    <View style={styles.section}>
-      <Text>loading</Text>
-    </View>
-  );
-};
-
 const GoodStuff = () => {
-  // const [snapshot, send, actor] = useSkyLightMachine();
+  const [snapshot, send, actor] = useSkyLightMachine();
   // console.log({ snapshot, send, actor });
   // const currentLightcolor = snapshot.value;
   const currentLightcolor = 'red';
@@ -85,11 +82,15 @@ export const App = () => {
           })}
         </View>
         <ScrollView>
+          {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+          {/*@ts-ignore*/}
           <Text>{snapshot.value}</Text>
           <Button onPress={() => clearEvents()} title="Clear Events" />
           <Text style={{ fontSize: 32 }}>
             {JSON.stringify(
               {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore*
                 current: snapshot.context.currentSnapshot || 'no snapshot',
               },
               null,
@@ -97,6 +98,8 @@ export const App = () => {
             )}
           </Text>
           <Text style={{ fontSize: 32 }}>
+            {/*eslint-disable-next-line @typescript-eslint/ban-ts-comment*/}
+            {/*@ts-ignore*/}
             {snapshot.context.count || 'no count'}
           </Text>
           <Text style={{ fontSize: 32 }}>

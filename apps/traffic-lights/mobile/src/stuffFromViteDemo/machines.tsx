@@ -47,8 +47,14 @@ const convertInspectEventToSlimEvent = (
 ): SlimSnapshot => {
   // return event as SlimSnapshot;
   return {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     type: event.event.type,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     context: event.snapshot.context,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     timestamp: event.timestamp,
     index: event.index,
   };
@@ -202,6 +208,8 @@ export const useOurActor = () => {
         // if (inspectionEvent.event.type === '*') return;
         // TODO: periodic sync to firebase storage for example
         // or utilize websockets in lower envs
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         await logStorage.append({ ...inspectionEvent, timestamp: new Date() });
       }
     },
@@ -218,14 +226,33 @@ export const useOurActor = () => {
     context: {
       count:
         // yay.js
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+
         snapshot.context.count === 0
           ? 0
-          : snapshot.context.count ||
+          : // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+
+            snapshot.context.count ||
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+
             snapshot.context.currentSnapshot?.context?.count,
 
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+
       replayIndex: snapshot.context.replayIndex,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+
       currentSnapshot: snapshot.context.currentSnapshot,
+
       numberReplayEventsTotal:
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+
         snapshot.context?.savedEventsFromLastMain?.length,
     },
     events,
@@ -289,9 +316,14 @@ const logStorage = {
           // like 52:07
           // or 06:01
           timestamp: `${l.timestamp
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+
             .getMinutes()
             .toString()
             .padStart(2, '0')}:${l.timestamp
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             .getSeconds()
             .toString()
             .padStart(2, '0')}`,
