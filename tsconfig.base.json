@@ -16,7 +16,9 @@
     "baseUrl": ".",
     "paths": {
       "@myorg/is-even": ["libs/is-even/src/index.ts"]
-    }
+    },
+        "esModuleInterop": true
+
   },
   "exclude": ["node_modules", "tmp"]
 }
