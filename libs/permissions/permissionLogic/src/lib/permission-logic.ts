@@ -1,57 +1,77 @@
-// export function permissionLogic(): string {
-//   return 'permissionLogic';
-// }
+import { assign, createMachine } from 'xstate';
 
-// permissionMonitoringMachine.ts
-import { actions, createMachine, interpret } from 'xstate';
+type PermissionEvent =
+  | { type: 'REQUEST_PERMISSION' }
+  | { type: 'PERMISSION_UPDATED'; permissionState: PermissionState };
 
-const permissionMonitoringMachine = createMachine({
+type PermissionState = 'granted' | 'denied' | 'revoked' | undefined;
+
+interface PermissionContext {
+  permissionState: PermissionState;
+}
+
+const permissionMonitoringMachine = createMachine(
+  {
+    id: 'permissionMonitoring',
+    initial: 'idle',
+    context: {
+      permissionState: undefined,
+    },
+    states: {
+      idle: {
+        on: {
+          REQUEST_PERMISSION: 'checkingPermission',
+        },
+      },
+      checkingPermission: {
+        invoke: {
+          src: 'checkPermission',
+          onDone: [
+            {
+              target: 'permissionGranted',
+              cond: (_, event) => event.data === 'granted',
+              actions: assign({ permissionState: (_, event) => event.data }),
+            },
+            {
+              target: 'permissionDenied',
+              cond: (_, event) => event.data === 'denied',
+              actions: assign({ permissionState: (_, event) => event.data }),
+            },
+          ],
+          onError: 'permissionRevoked',
+        },
+      },
+      permissionGranted: {},
+      permissionDenied: {},
+      permissionRevoked: {
+        entry: assign({ permissionState: 'revoked' }),
+      },
+    },
+    on: {
+      PERMISSION_UPDATED: {
+        actions: assign({
+          permissionState: (_, event) => event.permissionState,
+        }),
+      },
+    },
+  },
+  {
+    services: {
+      checkPermission: async () => {
+        // Simulating the permission check
+        const permissionResult: PermissionState = 'granted';
+        return permissionResult;
+      },
+    },
+  }
+);
+
+// Usage
+/*
+const permissionMonitoringService = createActor(permissionMonitoringMachine, {
   id: 'permissionMonitoring',
-  initial: 'idle',
-  context: {
-    permissionState: undefined as 'granted' | 'denied' | 'revoked' | undefined,
-  },
-  states: {
-    idle: {
-      on: {
-        REQUEST_PERMISSION: 'checkingPermission',
-      },
-    },
-    checkingPermission: {
-      invoke: {
-        src: 'checkPermission',
-        onDone: [
-          {
-            target: 'permissionGranted',
-            cond: (_, event) => event.data === 'granted',
-            actions: actions.assign({ permissionState: 'granted' }),
-          },
-          {
-            target: 'permissionDenied',
-            cond: (_, event) => event.data === 'denied',
-            actions: actions.assign({ permissionState: 'denied' }),
-          },
-        ],
-        onError: 'permissionRevoked',
-      },
-    },
-    permissionGranted: {},
-    permissionDenied: {},
-    permissionRevoked: {
-      entry: actions.assign({ permissionState: 'revoked' }),
-    },
-  },
 });
 
-// Simulating the permission check
-const checkPermission = async () => {
-  // Simulating the permission prompt
-  const permissionResult = 'granted';
-  return permissionResult;
-};
-
-const permissionMonitoringService = interpret(permissionMonitoringMachine, {
-  services: { checkPermission },
-}).start();
-
-export { permissionMonitoringMachine, permissionMonitoringService };
+permissionMonitoringService.start();
+permissionMonitoringService.send({ type: 'REQUEST_PERMISSION' });
+*/
