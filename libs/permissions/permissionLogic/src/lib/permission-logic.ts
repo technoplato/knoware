@@ -9,6 +9,7 @@ export const PermissionStatuses = {
   unasked: 'unasked',
   granted: 'granted',
   denied: 'denied',
+  revoked: 'revoked',
   blocked: 'blocked',
 } as const;
 export type PermissionStatus =
@@ -120,11 +121,16 @@ const permissionMonitoringMachine = setup({
   invoke: {
     src: 'subscribeToApplicationLifecycleEvents',
     id: 'applicationLifecycleEventsSubscriber',
-    input: ({ context }) => input.subscribeToApplicationLifecycleEvents,
   },
   context: { permissionStatuses: PermissionStatusMap },
   on: {
-    applicationForegrounded: { actions: 'triggerPermissionCheck' },
-    applicationBackgrounded: {},
+    applicationForegrounded: { target: 'application is in foreground' },
+    applicationBackgrounded: { target: 'application is in background' },
+  },
+  states: {
+    'application is in foreground': {
+      entry: ['triggerPermissionCheck'],
+    },
+    'application is in background': {},
   },
 });
