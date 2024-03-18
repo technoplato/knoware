@@ -10,7 +10,7 @@ describe('Permission Monitoring Machine', () => {
     );
   });
 
-  it('should check permissions once invoked', () => {
+  it('should check permissions once invoked', async () => {
     const permissionMonitoringActor = createActor(permissionMonitoringMachine);
     const initialPermissionMap: PermissionStatusMapType = {
       bluetooth: 'unasked',
@@ -27,7 +27,7 @@ describe('Permission Monitoring Machine', () => {
 
     permissionMonitoringActor.start();
 
-    waitFor(permissionMonitoringActor, (state) => {
+    await waitFor(permissionMonitoringActor, (state) => {
       // console.log({ state });
       console.log(state.context.permissionStatuses);
       return (
