@@ -1,77 +1,45 @@
-import { assign, createMachine } from 'xstate';
+import { assign, setup } from 'xstate';
 
-type PermissionEvent =
-  | { type: 'REQUEST_PERMISSION' }
-  | { type: 'PERMISSION_UPDATED'; permissionState: PermissionState };
+export const Permissions = {
+  bluetooth: 'bluetooth',
+  microphone: 'microphone',
+} as const;
+export type Permission = (typeof Permissions)[keyof typeof Permissions];
+export const PermissionStatuses = {
+  unasked: 'unasked',
+  granted: 'granted',
+  denied: 'denied',
+  blocked: 'blocked',
+};
+export type PermissionStatus =
+  (typeof PermissionStatuses)[keyof typeof PermissionStatuses];
 
-type PermissionState = 'granted' | 'denied' | 'revoked' | undefined;
+type PermissionStatusMapType = Record<Permission, PermissionStatus>;
+const PermissionStatusMap: PermissionStatusMapType = {
+  [Permissions.bluetooth]: PermissionStatuses.unasked,
+  [Permissions.microphone]: PermissionStatuses.unasked,
+} as const;
 
-interface PermissionContext {
-  permissionState: PermissionState;
-}
-
-const permissionMonitoringMachine = createMachine(
-  {
-    id: 'permissionMonitoring',
-    initial: 'idle',
-    context: {
-      permissionState: undefined,
-    },
-    states: {
-      idle: {
-        on: {
-          REQUEST_PERMISSION: 'checkingPermission',
-        },
-      },
-      checkingPermission: {
-        invoke: {
-          src: 'checkPermission',
-          onDone: [
-            {
-              target: 'permissionGranted',
-              cond: (_, event) => event.data === 'granted',
-              actions: assign({ permissionState: (_, event) => event.data }),
-            },
-            {
-              target: 'permissionDenied',
-              cond: (_, event) => event.data === 'denied',
-              actions: assign({ permissionState: (_, event) => event.data }),
-            },
-          ],
-          onError: 'permissionRevoked',
-        },
-      },
-      permissionGranted: {},
-      permissionDenied: {},
-      permissionRevoked: {
-        entry: assign({ permissionState: 'revoked' }),
-      },
-    },
-    on: {
-      PERMISSION_UPDATED: {
-        actions: assign({
-          permissionState: (_, event) => event.permissionState,
-        }),
-      },
-    },
+const permissionMonitoringMachine = setup({
+  types: {
+    context: {} as { permissionStatuses: PermissionStatusMapType },
+    events: {} as { type: 'inc' } | { type: 'dec' },
   },
-  {
-    services: {
-      checkPermission: async () => {
-        // Simulating the permission check
-        const permissionResult: PermissionState = 'granted';
-        return permissionResult;
-      },
-    },
-  }
-);
-
-// Usage
-/*
-const permissionMonitoringService = createActor(permissionMonitoringMachine, {
-  id: 'permissionMonitoring',
+  actions: {
+    increment: assign({
+      count: ({ context }) => context.count + 1,
+    }),
+    decrement: assign({
+      count: ({ context }) => context.count - 1,
+    }),
+  },
+  actors: {},
+}).createMachine({
+  context: { permissionStatuses: PermissionStatusMap },
+  on: {
+    inc: { actions: 'increment' },
+    dec: { actions: 'decrement' },
+  },
 });
 
-permissionMonitoringService.start();
-permissionMonitoringService.send({ type: 'REQUEST_PERMISSION' });
-*/
+console.log(permissionMonitoringMachine);
