@@ -141,14 +141,13 @@ const permissionMonitoringMachine = setup({
         return Promise.resolve(PermissionStatuses.granted);
       };
 
-      receive((event) => {
+      receive(async (event) => {
         if (event.type === 'checkPermissions') {
-          checkPermission().then((result) => {
-            sendBack({
-              type: 'permissionChecked',
-              permission: Permissions.bluetooth,
-              status: result,
-            });
+          const result = await checkPermission();
+          sendBack({
+            type: 'permissionChecked',
+            permission: Permissions.bluetooth,
+            status: result,
           });
         } else if (event.type === 'requestPermission') {
           // const result = await requestPermission();
