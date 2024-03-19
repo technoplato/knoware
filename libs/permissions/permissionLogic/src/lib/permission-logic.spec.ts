@@ -41,6 +41,40 @@ describe('Permission Monitoring Machine', () => {
       permissionStatuses: expectedFinalPermissionMap,
     });
   });
+
+  it('should request permission when asked to do so', async () => {
+    const permissionMonitorWithInitialFailingMachine =
+      permissionMonitoringMachine.provide({
+        actors: {
+          /**
+           * I need a failing implementation of the permissions actors...
+           * I want to find an ergonomic and simple way to do this...
+           */
+        },
+      });
+    const permissionMonitoringActor = createActor(permissionMonitoringMachine);
+    permissionMonitoringActor.start();
+
+    await waitFor(
+      permissionMonitoringActor,
+      (state) => {
+        return (
+          state.context.permissionStatuses.bluetooth ===
+            PermissionStatuses.denied &&
+          state.context.permissionStatuses.microphone ===
+            PermissionStatuses.denied
+        );
+      },
+      {
+        timeout: /* speeds up tests, no need to wait any real amount of time, just a tick */ 0,
+      }
+    );
+
+    permissionMonitoringActor.send({
+      type: 'triggerPermissionRequest',
+      permission: Permissions.microphone,
+    });
+  });
 });
 
 import {
@@ -94,6 +128,10 @@ type PermissionMonitoringMachineEvents =
       permission: Permission;
       status: PermissionStatus;
     }
+  | {
+      type: 'triggerPermissionRequest';
+      permission: Permission;
+    }
   | { type: 'applicationForegrounded' }
   | { type: 'applicationBackgrounded' };
 
@@ -112,6 +150,9 @@ const permissionMonitoringMachine = setup({
   },
   actions: {
     triggerPermissionCheck: raise({ type: 'checkPermissions' }),
+    triggerPermissionRequest: sendTo('permissionRequestActor', {
+      type: 'requestPermission',
+    }),
   },
   actors: {
     subscribeToApplicationLifecycleEvents: fromCallback(
