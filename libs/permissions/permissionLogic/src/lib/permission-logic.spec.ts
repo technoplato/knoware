@@ -5,9 +5,10 @@ describe('Permission Monitoring Machine', () => {
     const permissionMonitoringActor = createActor(permissionMonitoringMachine);
     permissionMonitoringActor.start();
 
-    expect(permissionMonitoringActor.getSnapshot().value).toBe(
-      'application is in foreground'
-    );
+    expect(permissionMonitoringActor.getSnapshot().value).toEqual({
+      applicationLifecycle: 'application is in foreground',
+      permissionChecking: {},
+    });
   });
 
   it('should check permissions once invoked', async () => {
@@ -33,6 +34,8 @@ describe('Permission Monitoring Machine', () => {
         state.context.permissionStatuses.microphone === 'granted'
       );
     });
+
+    permissionMonitoringActor.getSnapshot().context;
 
     expect(permissionMonitoringActor.getSnapshot().context).toStrictEqual({
       permissionStatuses: expectedFinalPermissionMap,
@@ -71,9 +74,14 @@ const PermissionStatusMap: PermissionStatusMapType = {
   [Permissions.microphone]: PermissionStatuses.unasked,
 } as const;
 
-const PermissionMonitoringMachineStates = {
+const ApplicationLifecycleStates = {
   applicationInForeground: 'application is in foreground',
   applicationInBackground: 'application is in background',
+} as const;
+
+const PermissionCheckingStates = {
+  idle: 'idle',
+  checking: 'checking',
 } as const;
 
 type PermissionMonitoringMachineContext = {
@@ -97,19 +105,8 @@ const ApplicationLifecycleEvents = {
 type ApplicationLifecycleEvent =
   (typeof ApplicationLifecycleEvents)[keyof typeof ApplicationLifecycleEvents];
 
-// type PermissionMonitoringMachineInput = {
-//   subscribeToApplicationLifecycleEvents: (
-//     event: ApplicationLifecycleEvent
-//   ) => void;
-//   checkBluetoothPermission: () => Promise<PermissionStatus>;
-//   checkMicrophonePermission: () => Promise<PermissionStatus>;
-//   requestBluetoothPermission: () => Promise<PermissionStatus>;
-//   requestMicrophonePermission: () => Promise<PermissionStatus>;
-// };
-
 const permissionMonitoringMachine = setup({
   types: {
-    // input: {} as PermissionMonitoringMachineInput,
     context: {} as PermissionMonitoringMachineContext,
     events: {} as PermissionMonitoringMachineEvents,
   },
@@ -118,7 +115,7 @@ const permissionMonitoringMachine = setup({
   },
   actors: {
     subscribeToApplicationLifecycleEvents: fromCallback(
-      ({ input, sendBack, receive, self, system }) => {
+      ({ sendBack, receive }) => {
         // ...
         // i have to have a default implementation here... what should it be?
         // I'm leaning towards unimplemented to avoid confusion
@@ -135,89 +132,112 @@ const permissionMonitoringMachine = setup({
          */
       }
     ),
-    bluetoothPermissionActor: fromCallback(
-      ({ input, sendBack, receive, self, system }) => {
-        const checkPermission = (): Promise<PermissionStatus> => {
-          return Promise.resolve(PermissionStatuses.granted);
-        };
+    bluetoothPermissionActor: fromCallback(({ sendBack, receive }) => {
+      const checkPermission = (): Promise<PermissionStatus> => {
+        return Promise.resolve(PermissionStatuses.granted);
+      };
 
-        const requestPermission = (): Promise<PermissionStatus> => {
-          return Promise.resolve(PermissionStatuses.granted);
-        };
+      const requestPermission = (): Promise<PermissionStatus> => {
+        return Promise.resolve(PermissionStatuses.granted);
+      };
 
-        console.log('1');
-        receive((event) => {
-          console.log({ event });
-          if (event.type === 'checkPermissions') {
-            // const result = await ();
-            checkPermission().then((result) => {
-              console.log({ result });
-
-              sendBack({
-                type: 'permissionChecked',
-                permission: Permissions.bluetooth,
-                status: result,
-              });
+      receive((event) => {
+        if (event.type === 'checkPermissions') {
+          checkPermission().then((result) => {
+            sendBack({
+              type: 'permissionChecked',
+              permission: Permissions.bluetooth,
+              status: result,
             });
-            // sendBack({
-            //   type: 'permissionChecked',
-            //   permission: Permissions.bluetooth,
-            //   status: result
-            // });
-          } else if (event.type === 'requestPermission') {
-            // const result = await requestPermission();
-            // sendBack({
-            //   type: 'permissionChecked',
-            //   permission: Permissions.bluetooth,
-            //   status: result
-            // });
-          }
-        });
-        // ...
-        // needs to listen for 'checkPermissions' and 'requestPermission' events and then
-        // return results back to parent actor
-        // also needs to ensure mapping of library type -> permission status type that we recognize and respond to
-      }
-    ),
-    microphonePermissionActor: fromCallback(
-      ({ input, sendBack, receive, self, system }) => {
-        const checkPermission = (): Promise<PermissionStatus> => {
-          return Promise.resolve(PermissionStatuses.granted);
-        };
+          });
+        } else if (event.type === 'requestPermission') {
+          // const result = await requestPermission();
+          // sendBack({
+          //   type: 'permissionChecked',
+          //   permission: Permissions.bluetooth,
+          //   status: result,
+          // });
+        }
+      });
+    }),
+    microphonePermissionActor: fromCallback(({ sendBack, receive }) => {
+      const checkPermission = (): Promise<PermissionStatus> => {
+        return Promise.resolve(PermissionStatuses.granted);
+      };
 
-        const requestPermission = (): Promise<PermissionStatus> => {
-          return Promise.resolve(PermissionStatuses.granted);
-        };
+      const requestPermission = (): Promise<PermissionStatus> => {
+        return Promise.resolve(PermissionStatuses.granted);
+      };
 
-        console.log('1');
-        receive((event) => {
-          console.log({ event });
-          if (event.type === 'checkPermissions') {
-            checkPermission().then((result) => {
-              sendBack({
-                type: 'permissionChecked',
-                permission: Permissions.microphone,
-                status: result,
-              });
-            });
-          } else if (event.type === 'requestPermission') {
-            // const result = await requestPermission();
-            // sendBack({
-            //   type: 'permissionChecked',
-            //   permission: Permissions.bluetooth,
-            //   status: result,
-            // });
-          }
-        });
-        // ...
-        // needs to listen for 'checkPermissions' and 'requestPermission' events and then
-        // return results back to parent actor
-        // also needs to ensure mapping of library type -> permission status type that we recognize and respond to
-      }
-    ),
+      receive(async (event) => {
+        if (event.type === 'checkPermissions') {
+          const result = await checkPermission();
+
+          sendBack({
+            type: 'permissionChecked',
+            permission: Permissions.microphone,
+            status: result,
+          });
+        } else if (event.type === 'requestPermission') {
+          // const result = await requestPermission();
+          // sendBack({
+          //   type: 'permissionChecked',
+          //   permission: Permissions.bluetooth,
+          //   status: result,
+          // });
+        }
+      });
+    }),
   },
 }).createMachine({
-  initial: PermissionMonitoringMachineStates.applicationInForeground,
+  type: 'parallel',
+  context: { permissionStatuses: PermissionStatusMap },
+  states: {
+    applicationLifecycle: {
+      initial: ApplicationLifecycleStates.applicationInForeground,
+      states: {
+        [ApplicationLifecycleStates.applicationInForeground]: {
+          entry: ['triggerPermissionCheck'],
+          on: {
+            [ApplicationLifecycleEvents.applicationBackgrounded]: {
+              target: ApplicationLifecycleStates.applicationInBackground,
+            },
+          },
+        },
+        [ApplicationLifecycleStates.applicationInBackground]: {
+          on: {
+            [ApplicationLifecycleEvents.applicationForegrounded]: {
+              target: ApplicationLifecycleStates.applicationInForeground,
+            },
+          },
+        },
+      },
+    },
+    permissionChecking: {
+      on: {
+        checkPermissions: {
+          actions: [
+            sendTo('bluetoothPermissionActor', {
+              type: 'checkPermissions',
+            }),
+            sendTo('microphonePermissionActor', {
+              type: 'checkPermissions',
+            }),
+          ],
+        },
+        permissionChecked: {
+          actions: [
+            assign({
+              permissionStatuses: ({ context, event }) => ({
+                ...context.permissionStatuses,
+                [event.permission]: event.status,
+              }),
+            }),
+          ],
+        },
+      },
+    },
+  },
   invoke: [
     {
       src: 'subscribeToApplicationLifecycleEvents',
@@ -232,39 +252,4 @@ const permissionMonitoringMachine = setup({
       src: 'microphonePermissionActor',
     },
   ],
-  context: { permissionStatuses: PermissionStatusMap },
-  on: {
-    applicationForegrounded: {
-      target: '.' + PermissionMonitoringMachineStates.applicationInForeground,
-    },
-    applicationBackgrounded: {
-      target: '.' + PermissionMonitoringMachineStates.applicationInBackground,
-    },
-    permissionChecked: {
-      actions: [
-        () => {
-          console.log('hi');
-        },
-        assign({
-          permissionStatuses: ({ context, event }) => {
-            console.log({ event });
-            return {
-              ...context.permissionStatuses,
-              [event.permission]: event.status,
-            };
-          },
-        }),
-      ],
-    },
-  },
-  states: {
-    [PermissionMonitoringMachineStates.applicationInForeground]: {
-      entry: [
-        'triggerPermissionCheck',
-        sendTo('bluetoothPermissionActor', { type: 'checkPermissions' }),
-        sendTo('microphonePermissionActor', { type: 'checkPermissions' }),
-      ],
-    },
-    [PermissionMonitoringMachineStates.applicationInBackground]: {},
-  },
 });
