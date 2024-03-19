@@ -28,12 +28,16 @@ describe('Permission Monitoring Machine', () => {
 
     permissionMonitoringActor.start();
 
-    await waitFor(permissionMonitoringActor, (state) => {
-      return (
-        state.context.permissionStatuses.bluetooth === 'granted' &&
-        state.context.permissionStatuses.microphone === 'granted'
-      );
-    });
+    await waitFor(
+      permissionMonitoringActor,
+      (state) => {
+        return (
+          state.context.permissionStatuses.bluetooth === 'granted' &&
+          state.context.permissionStatuses.microphone === 'granted'
+        );
+      },
+      { timeout: 1 }
+    );
 
     permissionMonitoringActor.getSnapshot().context;
 
@@ -81,7 +85,6 @@ import {
   assign,
   createActor,
   fromCallback,
-  raise,
   sendTo,
   setup,
   waitFor,
@@ -143,16 +146,87 @@ const ApplicationLifecycleEvents = {
 type ApplicationLifecycleEvent =
   (typeof ApplicationLifecycleEvents)[keyof typeof ApplicationLifecycleEvents];
 
+/**
+ * Invoking actors with input
+ *
+   * import { createActor, setup } from 'xstate';
+
+const feedbackMachine = setup({
+  actors: {
+    liveFeedback: fromPromise(({ input }: { input: { domain: string } }) => {
+      return fetch(`https://${input.domain}/feedback`).then((res) =>
+        res.json(),
+      );
+    }),
+  }
+}).createMachine({
+  invoke: {
+    src: 'liveFeedback',
+    input: {
+      domain: 'stately.ai',
+    },
+  },
+});
+   */
+interface PermissionMachineActions {
+  checkPermission: () => Promise<PermissionStatus>;
+  requestPermission: () => Promise<PermissionStatus>;
+}
+
+const unimplementedPermissionMachineActions: PermissionMachineActions = {
+  checkPermission: () => {
+    console.log('checkPermission');
+    return new Promise((resolve) => resolve(PermissionStatuses.granted));
+
+    throw new Error('unimplemented');
+  },
+  requestPermission: () => {
+    return new Promise((resolve) => resolve(PermissionStatuses.granted));
+    throw new Error('unimplemented');
+  },
+} as const;
+
+type PermissionMachineEvents =
+  | { type: 'triggerPermissionCheck' }
+  | { type: 'triggerPermissionRequest'; permission: Permission };
+
+const permissionMachine = setup({
+  types: {
+    input: {} as { permission: Permission },
+    events: {} as PermissionMachineEvents,
+  },
+  actions: {
+    checkPermission: unimplementedPermissionMachineActions.checkPermission,
+    requestPermission: unimplementedPermissionMachineActions.requestPermission,
+  },
+}).createMachine({
+  id: 'permission',
+
+  on: {
+    triggerPermissionCheck: {
+      actions: 'checkPermission',
+    },
+    triggerPermissionRequest: {
+      actions: 'requestPermission',
+    },
+  },
+});
+
 const permissionMonitoringMachine = setup({
   types: {
     context: {} as PermissionMonitoringMachineContext,
     events: {} as PermissionMonitoringMachineEvents,
   },
   actions: {
-    triggerPermissionCheck: raise({ type: 'checkPermissions' }),
-    triggerPermissionRequest: sendTo('permissionRequestActor', {
-      type: 'requestPermission',
-    }),
+    // triggerPermissionCheck: raise({ type: 'checkPermissions' }),
+    // triggerPermissionRequest: sendTo('permissionRequestActor', {
+    //   type: 'requestPermission',
+    // }),
+    triggerPermissionRequest: (_, params: { permission: Permission }) =>
+      sendTo('permissionRequestActor', {
+        type: 'requestPermission',
+        permission: params.permission,
+      }),
   },
   actors: {
     subscribeToApplicationLifecycleEvents: fromCallback(
@@ -173,33 +247,36 @@ const permissionMonitoringMachine = setup({
          */
       }
     ),
-    bluetoothPermissionActor: fromCallback(({ sendBack, receive }) => {
-      const checkPermission = (): Promise<PermissionStatus> => {
-        return Promise.resolve(PermissionStatuses.granted);
-      };
+    bluetoothPermissionActor: permissionMachine,
+    // bluetoothPermissionActor: fromCallback(({ sendBack, receive }) => {
+    //   const checkPermission = (): Promise<PermissionStatus> => {
+    //     return Promise.resolve(PermissionStatuses.granted);
+    //   };
 
-      const requestPermission = (): Promise<PermissionStatus> => {
-        return Promise.resolve(PermissionStatuses.granted);
-      };
+    //   const requestPermission = (
+    //     permission: Permission
+    //   ): Promise<PermissionStatus> => {
+    //     return Promise.resolve(PermissionStatuses.granted);
+    //   };
 
-      receive(async (event) => {
-        if (event.type === 'checkPermissions') {
-          const result = await checkPermission();
-          sendBack({
-            type: 'permissionChecked',
-            permission: Permissions.bluetooth,
-            status: result,
-          });
-        } else if (event.type === 'requestPermission') {
-          // const result = await requestPermission();
-          // sendBack({
-          //   type: 'permissionChecked',
-          //   permission: Permissions.bluetooth,
-          //   status: result,
-          // });
-        }
-      });
-    }),
+    //   receive(async (event) => {
+    //     if (event.type === 'checkPermissions') {
+    //       const result = await checkPermission();
+    //       sendBack({
+    //         type: 'permissionChecked',
+    //         permission: Permissions.bluetooth,
+    //         status: result,
+    //       });
+    //     } else if (event.type === 'requestPermission') {
+    //       // const result = await requestPermission(event?.params?.permission);
+    //       // sendBack({
+    //       //   type: 'permissionChecked',
+    //       //   permission: Permissions.bluetooth,
+    //       //   status: result,
+    //       // });
+    //     }
+    //   });
+    // }),
     microphonePermissionActor: fromCallback(({ sendBack, receive }) => {
       const checkPermission = (): Promise<PermissionStatus> => {
         return Promise.resolve(PermissionStatuses.granted);
@@ -237,7 +314,7 @@ const permissionMonitoringMachine = setup({
       initial: ApplicationLifecycleStates.applicationInForeground,
       states: {
         [ApplicationLifecycleStates.applicationInForeground]: {
-          entry: ['triggerPermissionCheck'],
+          // entry: ['triggerPermissionCheck'],
           on: {
             [ApplicationLifecycleEvents.applicationBackgrounded]: {
               target: ApplicationLifecycleStates.applicationInBackground,
