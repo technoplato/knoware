@@ -28,18 +28,15 @@ describe('Permission Monitoring Machine', () => {
     permissionMonitoringActor.start();
 
     await waitFor(permissionMonitoringActor, (state) => {
-      // console.log({ state });
-      console.log(state.context.permissionStatuses);
       return (
         state.context.permissionStatuses.bluetooth === 'granted' &&
         state.context.permissionStatuses.microphone === 'granted'
       );
     });
 
-    expect(
-      permissionMonitoringActor.getSnapshot().context.permissionStatuses
-        .microphone
-    ).toBe('granted');
+    expect(permissionMonitoringActor.getSnapshot().context).toStrictEqual({
+      permissionStatuses: expectedFinalPermissionMap,
+    });
   });
 });
 
