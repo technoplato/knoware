@@ -2,11 +2,11 @@ import { assign, createActor, createMachine, sendParent, sendTo } from 'xstate';
 
 describe('invoke', () => {
   it('child can immediately respond to the parent with multiple events', () => {
-    const childMachine = createMachine({
+    const bluetoothPermissionMachine = createMachine({
       types: {} as {
         events: { type: 'FORWARD_DEC' };
       },
-      id: 'child',
+      id: 'bluetoothPermission',
       initial: 'init',
       states: {
         init: {
@@ -29,9 +29,9 @@ describe('invoke', () => {
         types: {} as {
           context: { count: number };
           actors: {
-            src: 'child';
+            src: 'bluetoothPermission';
             id: 'someService';
-            logic: typeof childMachine;
+            logic: typeof bluetoothPermissionMachine;
           };
         },
         context: { count: 0 },
@@ -39,7 +39,7 @@ describe('invoke', () => {
         states: {
           start: {
             invoke: {
-              src: 'child',
+              src: 'bluetoothPermission',
               id: 'someService',
             },
             always: {
@@ -62,7 +62,7 @@ describe('invoke', () => {
       },
       {
         actors: {
-          child: childMachine,
+          bluetoothPermission: bluetoothPermissionMachine,
         },
       }
     );
