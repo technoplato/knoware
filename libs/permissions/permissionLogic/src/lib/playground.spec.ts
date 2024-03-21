@@ -3,10 +3,12 @@ import {
   assign,
   createActor,
   createMachine,
+  fromPromise,
   log,
   raise,
   sendParent,
   sendTo,
+  setup,
 } from 'xstate';
 
 const composerMachine = createMachine({
@@ -1113,14 +1115,33 @@ describe('parallel states', () => {
   });
 
   describe('invoke', () => {
-    it('child can immediately respond to the parent with multiple events', () => {
-      const bluetoothPermissionMachine = createMachine({
+    it('should gradually become permissions actor system', () => {
+      const bluetoothPermissionMachine = setup({
+        actors: {
+          checkPermission: fromPromise(async () => {
+            const result = await Promise.resolve('denied');
+            return assign({ result });
+          }),
+        },
+        actions: {
+          spawnFetcher: assign(({ spawn }) => {
+            return {
+              child: spawn('checkPermission'),
+            };
+          }),
+        },
         types: {} as {
           events:
             | { type: 'FORWARD_DEC' }
             | { type: 'triggerPermissionRequest' };
+
+          context: {
+            triggered: boolean;
+            child: /*TODO fix type */ any | undefined;
+          };
         },
-        //   id: 'bluetoothPermissionId',
+      }).createMachine({
+        context: { triggered: false, child: undefined },
         initial: 'init',
         states: {
           init: {
@@ -1129,6 +1150,8 @@ describe('parallel states', () => {
                 actions: [
                   log('triggerPermissionRequest'),
                   assign({ triggered: true }),
+                  sendTo('child', { type: 'triggerPermissionRequest' }),
+                  //   'checkPermission',
                 ],
               },
               FORWARD_DEC: {
@@ -1203,6 +1226,7 @@ describe('parallel states', () => {
           .context
       ).toEqual({
         triggered: true,
+        result: 'something',
       });
     });
   });
