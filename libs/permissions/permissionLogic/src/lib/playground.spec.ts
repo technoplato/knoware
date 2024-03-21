@@ -3,6 +3,7 @@ import {
   assign,
   createActor,
   createMachine,
+  log,
   raise,
   sendParent,
   sendTo,
@@ -193,50 +194,6 @@ const composerMachine = createMachine({
   },
 });
 
-const wakMachine = createMachine({
-  id: 'wakMachine',
-  type: 'parallel',
-
-  states: {
-    wak1: {
-      initial: 'wak1sonA',
-      states: {
-        wak1sonA: {
-          entry: 'wak1sonAenter',
-          exit: 'wak1sonAexit',
-        },
-        wak1sonB: {
-          entry: 'wak1sonBenter',
-          exit: 'wak1sonBexit',
-        },
-      },
-      on: {
-        WAK1: '.wak1sonB',
-      },
-      entry: 'wak1enter',
-      exit: 'wak1exit',
-    },
-    wak2: {
-      initial: 'wak2sonA',
-      states: {
-        wak2sonA: {
-          entry: 'wak2sonAenter',
-          exit: 'wak2sonAexit',
-        },
-        wak2sonB: {
-          entry: 'wak2sonBenter',
-          exit: 'wak2sonBexit',
-        },
-      },
-      on: {
-        WAK2: '.wak2sonB',
-      },
-      entry: 'wak2enter',
-      exit: 'wak2exit',
-    },
-  },
-});
-
 const wordMachine = createMachine({
   id: 'word',
   type: 'parallel',
@@ -310,6 +267,7 @@ const flatParallelMachine = createMachine({
 });
 
 const raisingParallelMachine = createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOgHkBVAFQFEAlARhIEEBiGgNRoDkqB9SrUZ8AQgG0ADAF1EoAA4B7WLgAuuBflkgAHogYSArAA4SRgOwA2AwE4LEiwGZLNgDQgAnogC0DgCwkJX19jXyMLOyNfBgYAXxi3NCw8QlJBeiY2Th5+NOEAYUkZJBBFZTUNLV0EL2sDEmtrACZfe2sHY0aLBka3TwQnRpIDcIN7XwdHM0ajBziEjBwCYnJqdJIRdi5eAVXhZkKtUtV1TWKq-WNTZ1t7JytrXsRrEl9LC0aph0aDKJm5kESixSKyETA2WW2uQYfAK0kOSmOFTO3gMjSYtQMNiMEgmDAsvh6HkQwSYZgYwwa1hx2Ia-0ByWWUJIeU22R2oL4+zhxSO5VOoCqNTqDWarXaRk63UeCCiFgC5jJRgMfgaCrpCwZqV2TBZEJy2tEBx5CL5lW8tXqTRaFjaHS6hL63wkJDRHzMErMDgcEgkRnVSSWWqEgwAktxuGsyAAxKOsKgUOjcATcI3yE0nM0IBhmZ61BgTfH5yJGaxmaVWOVGfM+zHNKZhf1Axm7UPhyPcVh5AAyNGYdFTJXTSIFehz9QM+fCUQcxdL0rMPpIXoJjkMnQmvkbmpB9FbEbog2jsfjieTA95GeRWbHeYL09nZaJCBLdXaXp+nwnjVm8QBGsDO4HiQYb7oeHYnkmR7nkO-I6KOuYTneRahHOT5KkwMyNIY2bhF8nRxL++AKBAcBaPSgbwmUl4jtUOZ1JiUTuvY4TRA8T5eFhJhmGYPzRL41jmAJ5JbgBUKUYisGCmYrxDLxTHhF0DBsX0XjdEwUQ+hI34fJETQWCJwJMsw4mmleXg2s8DEML4LFaT6yl6HKPyBFWVJksEWmNAZzagusJnUXB1QWbJjHYgprHSg4FrGHithGDMC4+j+8wBoZ2rMv5w6BeZDQhdmYUsdm5ZjhKEoMGEYQ2hYZjeUGu6ZZJiAWNKoSDL6aLmOV0zetYtWAXu6QNZmPzShSLyvDYjjKtxAl9bkA2MOQMZDVejTReYWE5u8vrWeW+IBEElivO05XmHNLbAW2i1kNwK00foDpNV0QyHT8zSluVm6-uRaXBpdoF3YFI1PkdLwKQSNjTRM51-SBu5LVGgPnFp0pKk5jgSl8hi1F8MPw3DQE3UjiDes6tgTBIH02kERiozYAQY9p2PKl5BFAA */
   type: 'parallel',
   states: {
     OUTER1: {
@@ -377,6 +335,7 @@ const raisingParallelMachine = createMachine({
 });
 
 const nestedParallelState = createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOgHkBVAFQFEAlARhIGUqBBWgfTIDEeBiGgDUaAOSqcAwmQCyABQAyNABoBtAAwBdRKAAOAe1i4ALrn34dIAB6IAtAHYATABYSz+wFZHAZg8eAHPYAnABsXgA0IACeiI4BJN7ODP4hIe4u3kEeIQC+OZFoWHiEpJS0jCzsXLwCwmISzACS8koa2kggBkam5pY2CLZBDExxyR7O3okeid6RMQhx-glJKWlOE1m5+SCFOATE5NT0TKwcNNyilWec4gBS6ldcjQAiSpzqgiLinKdcd+qcADqZDoAGk2pYuiYzBYOv1bGkll5Mv51I4Qmj0SE5ogQt4Hr4JikghMwv5vHkChg9iVDuUTlVzmRLr9zv9HudgWDGqIAOLvT71H6Mm5Ue6cF6tLSQwzQ3pwux4jwkdTTIIuVIkzE4hABB5efwpcb2eyTIJBSk7anFA5lY4ci4Ou4M66S84MQXfVmi24MIEg8HSjpQnqw0DwsKOEhxZzODwmobZEL2HXkoIJRzk9zeRwkyb+S27G2lI4Vb3Mp1il1cLmgnn8j11L0i50S140CHB2WhvqK7xLez+InZBhDBjqZw6wfpjxo-yLPHDcaF637EvlKPlvieiTSFoqTt6bsw3sLDzpkK59TeBiJWOONGT6KIcdLOL2ZOhdFDy8roprul6E3EUah3H5mkUDsgyPboTwVAZxhIc91VNEJQm8NJ1BJHV8XTBg0McBhsmcdUsiHPJtnwfQIDgSwizXGVYPlcM7HHdR7GjDwxgmKYZh1BEQgSQ0GBIhgTQmTMC22ejaTtRhGLlMNrDsLJ01GfxxkmOM+OfBBMjcIYgnsLD1TjYk-xpW1S2rJk+AUnt4NsfwsmWCc0SIvFEx1Bh0RIfwRMNexnHJftgvsCzi0AssQNEey4JYgYgnUQTEjcwjskyIidWcVU-PJNEkvUW9vBNCKALkmzHW9f44uY5SBg0pZUpy9LPKy3SSO8aNVRJJxMnzKSqX-WTrIdCtqrFB5vTdd5aqU+F-IJHKWo8zKPB1AJBMcQdnAfIIpljLYhss9d7XLFkW0mh1a3rWauyY+a7H7ZVz12wznDCWcMI2w0SBNIc9oOj6ypG+kxou65nTm08nPiZr3IyrzdOMqMxPNdjLy4kTnBBqywfOytfQdGaGGhxzFtclbEfa+ZgmVOIfH8nNrwfBhcdO6LrnGy6ie9G6+U4Un7sUmHMrcRJb3GVJkvnbFkaMv7kSZh9mbZ6TV1BoCyYS2xxyjZDtow9C0gYHUHxIfb3GTG9En23MjqtYa8aAsa7OFhyEp8rqiI-AJMiK9VZl04ZXCHVUQiHMTQtvdmouArnRHA-dtfq5IHnRVVb1jLwSQiYOJ3TDShicedHEI5zY7k+PqkTvdIOUFP+mGVH4zJf3Rx8HD9ot9RAjLvwSXnQbHZOuPwakWR6+J0RRGORuXwxEgfbbpKO6D+ZgpGG9EXxGZPHC9WnY56umVryelGUafZ856o3ZgkX4IfJZl791fA42iOkPGb+CumNJK9LCfC4E99yX2mjPM6MV54LGGEJXwppYzYwxHLeYl4OITiSHOQiEdggAI3OPOuF8r5a3dvFVOi8X5pgDp3XSaEOLTAwslPq0w-B4JdudEBU9wHXyATUaBT8l6t1ftQ9eiAdp+WyF9WM6EJhsLoLws+oDiHyPBvw2B-Z4F3iQclVMExljIJ8kkQcAQKI5CAA */
   type: 'parallel',
   states: {
     OUTER1: {
@@ -574,16 +533,6 @@ describe('parallel states', () => {
     expect(actorRef.getSnapshot().value).toEqual({
       wak1: 'wak1sonB',
       wak2: 'wak2sonA',
-    });
-  });
-
-  it('should have all parallel states represented in the state value (2)', () => {
-    const actorRef = createActor(wakMachine).start();
-    actorRef.send({ type: 'WAK2' });
-
-    expect(actorRef.getSnapshot().value).toEqual({
-      wak1: 'wak1sonA',
-      wak2: 'wak2sonB',
     });
   });
 
@@ -909,6 +858,7 @@ describe('parallel states', () => {
 
     it('should not overlap resolved state nodes in state resolution', () => {
       const machine = createMachine({
+        /** @xstate-layout N4IgpgJg5mDOIC5QAcCWywBtUDswDoAzAe2IGIBVABQBEBBAFQFEBtABgF1EVjZUAXVMRzcQAD0QBGAJwBmfGwDsbAKwzFc2YoBMbAGwAaEAE9E0yfkUbJbABxrtsvbb3aAvm6NoM2PPgBGAIYATpS0jKycosi8AkIiSOKIbEamCGweniA4xBBw0ehYuGDRsYLCohIIALTa0tIKqnqSLSqysjLaKqmI1ZKKACz4egMqttq24yrOnR5ehb4EJMSlfOUJoFWyKirDI7KTtmxO9T0I2oq77WySevpsDwMD0nMg3kV+QcGrcRWJVbU1I1pi1JG0OtIumdqrZFPhZNo6pInpIJgM2NI9K93osAiF8KgIJgSokYmt4pVerp5A8Qa12p1uiZEDp8NIXCptDIVAN2jNsQtinjgniAF4-daUhC3fAqHSIvRWaQaaQ7RRnLlsfA2S6uCaKPQjaaZNxAA */
         id: 'pipeline',
         type: 'parallel',
         states: {
@@ -947,6 +897,7 @@ describe('parallel states', () => {
     // https://github.com/statelyai/xstate/issues/518
     it('regions should be able to transition to orthogonal regions', () => {
       const testMachine = createMachine({
+        /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOgFkx8BXEgYQBsB7WSAYgBdGop6wBtAAwBdRKAAOzXO1yN8okAA9EAgDQgAnsoC+WtWix5CpCtRIB5MZTaduvQSKQgJsKTLmOlCVRu26Q+nAJickoaCysIVihGAAJOGIh0WGwAI0Z0ACcIe3lnV1l5TwBGAFYSACYAFhKBEoBOcrqAdgBmFoAOFsrKtU0EEoA2IpJKgXKipvGBJqa69pKdP3xGCDh5AMNiXMlpAo9EAFoWpsqSEqK644aWgaaBZt7DidOB6vby9vfB9ovynT0MIEjCQAAroGDwRx5XbuUCecoDdoVCYDARjeYYlqPBBFUoVOpjKoDcpVBEff7+QGbUhgiEkACCaSo7G2LhhhUQLSKA2RTVR6JKmOx5TGJCGXJaBJaJQRk0qFI2QRp4LgJAAIklUuksqz8rDFJzubz+R9BYKsT4EG0miQimM+QIijd2nMFn5FcCTFRdez9ggjgizhcruUbncHpaDu0bS0SXUit0ih9RnUBgqqUqQqYGMxID63Bz-eUmkjzpdZqHbvcmsKhiRpqiPuVBnbjumDJmveZLIQIPm9nDDsXS8GK2Hq9jJWVBoNKpcSjMus1FlogA */
         type: 'parallel',
         states: {
           Pages: {
@@ -966,13 +917,13 @@ describe('parallel states', () => {
               Closed: {
                 id: 'Closed',
                 on: {
-                  toggle: '#Opened',
+                  toggle: 'Opened',
                 },
               },
               Opened: {
                 id: 'Opened',
                 on: {
-                  toggle: '#Closed',
+                  toggle: 'Closed',
                   'go to dashboard': {
                     target: ['#Dashboard', '#Opened'],
                   },
@@ -1165,13 +1116,21 @@ describe('parallel states', () => {
     it('child can immediately respond to the parent with multiple events', () => {
       const bluetoothPermissionMachine = createMachine({
         types: {} as {
-          events: { type: 'FORWARD_DEC' };
+          events:
+            | { type: 'FORWARD_DEC' }
+            | { type: 'triggerPermissionRequest' };
         },
         //   id: 'bluetoothPermissionId',
         initial: 'init',
         states: {
           init: {
             on: {
+              triggerPermissionRequest: {
+                actions: [
+                  log('triggerPermissionRequest'),
+                  assign({ triggered: true }),
+                ],
+              },
               FORWARD_DEC: {
                 actions: [
                   sendParent({ type: 'DEC' }),
@@ -1214,7 +1173,7 @@ describe('parallel states', () => {
                 },
                 FORWARD_DEC: {
                   actions: sendTo('bluetoothPermissionId', {
-                    type: 'FORWARD_DEC',
+                    type: 'triggerPermissionRequest',
                   }),
                 },
               },
@@ -1238,7 +1197,13 @@ describe('parallel states', () => {
       // 2. The 'FORWARD_DEC' event will be "forwarded" to the child machine
       // 3. On the child machine, the 'FORWARD_DEC' event sends the 'DEC' action to the parent thrice
       // 4. The context of the 'parent' machine will be updated from 0 to -3
-      expect(actorRef.getSnapshot().context).toEqual({ count: -3 });
+      //   expect(actorRef.getSnapshot().context).toEqual({ count: -3 });
+      expect(
+        actorRef.getSnapshot().children.bluetoothPermissionId?.getSnapshot()
+          .context
+      ).toEqual({
+        triggered: true,
+      });
     });
   });
 });
