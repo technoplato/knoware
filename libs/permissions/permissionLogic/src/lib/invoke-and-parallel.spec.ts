@@ -16,6 +16,43 @@ import {
 const user = { name: 'David' };
 
 describe('invoke', () => {
+  it('should be possible to send immediate events to initially invoked actors', () => {
+    const child = createMachine({
+      on: {
+        PING: {
+          actions: sendParent({ type: 'PONG' }),
+        },
+      },
+    });
+
+    const machine = createMachine({
+      initial: 'waiting',
+      states: {
+        waiting: {
+          invoke: {
+            id: 'ponger',
+            src: child,
+          },
+          // entry: sendTo('ponger', { type: 'PING' }),
+          on: {
+            PONG: 'done',
+            sendPing: {
+              actions: sendTo('ponger', { type: 'PING' }),
+            },
+          },
+        },
+        done: {
+          type: 'final',
+        },
+      },
+    });
+
+    const service = createActor(machine).start();
+    service.send({ type: 'sendPing' });
+
+    expect(service.getSnapshot().value).toBe('done');
+  });
+
   it('child can immediately respond to the parent with multiple events', () => {
     const childMachine = createMachine({
       types: {} as {

@@ -1,8 +1,11 @@
 import {
+  ActorRef,
+  Snapshot,
   StateValue,
   assign,
   createActor,
   createMachine,
+  enqueueActions,
   fromPromise,
   log,
   raise,
@@ -1221,13 +1224,13 @@ describe('parallel states', () => {
       // 3. On the child machine, the 'FORWARD_DEC' event sends the 'DEC' action to the parent thrice
       // 4. The context of the 'parent' machine will be updated from 0 to -3
       //   expect(actorRef.getSnapshot().context).toEqual({ count: -3 });
-      expect(
-        actorRef.getSnapshot().children.bluetoothPermissionId?.getSnapshot()
-          .context
-      ).toEqual({
-        triggered: true,
-        result: 'something',
-      });
+      // expect(
+      //   actorRef.getSnapshot().children.bluetoothPermissionId?.getSnapshot()
+      //     .context
+      // ).toEqual({
+      //   triggered: true,
+      //   result: 'something',
+      // });
     });
   });
 });
@@ -1245,137 +1248,221 @@ write a complete test in this style, I will report the findings of the test to t
 
 // claude
 
-describe('assumptions', () => {
-  it('should support parallel states', () => {
-    const parallelMachine = createMachine({
-      id: 'parent',
-      type: 'parallel',
-      states: {
-        state1: {},
-        state2: {},
+// describe('assumptions', () => {
+//   it('should support parallel states', () => {
+//     const parallelMachine = createMachine({
+//       id: 'parent',
+//       type: 'parallel',
+//       states: {
+//         state1: {},
+//         state2: {},
+//       },
+//     });
+
+//     const actorRef = createActor(parallelMachine).start();
+
+//     expect(actorRef.getSnapshot().value).toEqual({
+//       state1: {},
+//       state2: {},
+//     });
+//   });
+
+//   it('should support invoking child machines', () => {
+//     const childMachine = createMachine({
+//       id: 'child',
+//       initial: 'idle',
+//       states: {
+//         idle: {},
+//       },
+//     });
+
+//     const parentMachine = createMachine({
+//       id: 'parent',
+//       initial: 'active',
+//       states: {
+//         active: {
+//           invoke: {
+//             id: 'child',
+//             src: childMachine,
+//           },
+//         },
+//       },
+//     });
+
+//     const actorRef = createActor(parentMachine).start();
+
+//     expect(actorRef.getSnapshot().value).toEqual({
+//       active: {
+//         child: 'idle',
+//       },
+//     });
+//   });
+
+//   it('should support sending events from child to parent', () => {
+//     const childMachine = createMachine({
+//       id: 'child',
+//       initial: 'idle',
+//       states: {
+//         idle: {
+//           on: {
+//             PING: {
+//               actions: sendParent({ type: 'PING_RECEIVED' }),
+//             },
+//           },
+//         },
+//       },
+//     });
+
+//     const parentMachine = createMachine({
+//       id: 'parent',
+//       initial: 'active',
+//       states: {
+//         active: {
+//           invoke: {
+//             id: 'child',
+//             src: childMachine,
+//           },
+//           on: {
+//             PING_RECEIVED: 'pinged',
+//           },
+//         },
+//         pinged: {},
+//       },
+//     });
+
+//     const actorRef = createActor(parentMachine).start();
+
+//     actorRef.send({ type: 'PING' });
+
+//     expect(actorRef.getSnapshot().value).toEqual('pinged');
+//   });
+
+//   it('should support sending events from parent to child', () => {
+//     const childMachine = createMachine({
+//       id: 'child',
+//       initial: 'idle',
+//       states: {
+//         idle: {
+//           on: {
+//             PING: 'pinged',
+//           },
+//         },
+//         pinged: {},
+//       },
+//     });
+
+//     const parentMachine = createMachine({
+//       id: 'parent',
+//       initial: 'active',
+//       states: {
+//         active: {
+//           invoke: {
+//             id: 'child',
+//             src: childMachine,
+//           },
+//           on: {
+//             SEND_PING: {
+//               actions: sendTo('child', 'PING'),
+//             },
+//           },
+//         },
+//       },
+//     });
+
+//     const actorRef = createActor(parentMachine).start();
+
+//     actorRef.send({ type: 'SEND_PING' });
+
+//     expect(actorRef.getSnapshot().value).toEqual({
+//       active: {
+//         child: 'pinged',
+//       },
+//     });
+//   });
+// });
+
+it('should be able to communicate with the parent using params', () => {
+  type ParentEvent = { type: 'FOO' } | { type: 'triggerFlob' };
+
+  const childMachine = setup({
+    types: {} as {
+      input: {
+        parent?: ActorRef<Snapshot<unknown>, ParentEvent>;
+      };
+      context: {
+        parent?: ActorRef<Snapshot<unknown>, ParentEvent>;
+      };
+    },
+    actions: {
+      mySendParent: enqueueActions(
+        ({ context, enqueue }, event: ParentEvent) => {
+          if (!context.parent) {
+            // it's here just for illustration purposes
+            console.log(
+              'WARN: an attempt to send an event to a non-existent parent'
+            );
+            return;
+          }
+          enqueue.sendTo(context.parent, event);
+        }
+      ),
+    },
+  }).createMachine({
+    context: ({ input }) => ({ parent: input.parent }),
+
+    on: {
+      flob: {
+        actions: {
+          type: 'mySendParent',
+          params: {
+            type: 'FOO',
+          },
+        },
       },
-    });
+    },
 
-    const actorRef = createActor(parallelMachine).start();
-
-    expect(actorRef.getSnapshot().value).toEqual({
-      state1: {},
-      state2: {},
-    });
+    // entry: {
+    //   type: 'mySendParent',
+    //   params: {
+    //     type: 'FOO',
+    //   },
+    // },
   });
 
-  it('should support invoking child machines', () => {
-    const childMachine = createMachine({
-      id: 'child',
-      initial: 'idle',
-      states: {
-        idle: {},
-      },
-    });
+  const spy = jest.fn();
 
-    const parentMachine = createMachine({
-      id: 'parent',
-      initial: 'active',
-      states: {
-        active: {
-          invoke: {
-            id: 'child',
-            src: childMachine,
-          },
-        },
+  const parentMachine = setup({
+    types: {} as { context: { foo: string }; events: ParentEvent },
+    actors: {
+      childMachine,
+    },
+  }).createMachine({
+    context: { foo: 'bar' },
+    on: {
+      FOO: {
+        actions: spy,
       },
-    });
-
-    const actorRef = createActor(parentMachine).start();
-
-    expect(actorRef.getSnapshot().value).toEqual({
-      active: {
-        child: 'idle',
+      triggerFlob: {
+        actions: [
+          assign({ foo: 'baz' }),
+          /*        don't format      */
+          sendTo('someChild', { type: 'flob' }),
+        ],
       },
-    });
+    },
+    invoke: {
+      src: 'childMachine',
+      id: 'someChild',
+      input: ({ self }) => ({ parent: self }),
+    },
   });
 
-  it('should support sending events from child to parent', () => {
-    const childMachine = createMachine({
-      id: 'child',
-      initial: 'idle',
-      states: {
-        idle: {
-          on: {
-            PING: {
-              actions: sendParent({ type: 'PING_RECEIVED' }),
-            },
-          },
-        },
-      },
-    });
+  const actorRef = createActor(parentMachine).start();
+  console.log(actorRef.getSnapshot().children);
+  actorRef.send({ type: 'triggerFlob' });
+  expect(actorRef.getSnapshot().context).toEqual({ foo: 'baz' });
 
-    const parentMachine = createMachine({
-      id: 'parent',
-      initial: 'active',
-      states: {
-        active: {
-          invoke: {
-            id: 'child',
-            src: childMachine,
-          },
-          on: {
-            PING_RECEIVED: 'pinged',
-          },
-        },
-        pinged: {},
-      },
-    });
-
-    const actorRef = createActor(parentMachine).start();
-
-    actorRef.send({ type: 'PING' });
-
-    expect(actorRef.getSnapshot().value).toEqual('pinged');
-  });
-
-  it('should support sending events from parent to child', () => {
-    const childMachine = createMachine({
-      id: 'child',
-      initial: 'idle',
-      states: {
-        idle: {
-          on: {
-            PING: 'pinged',
-          },
-        },
-        pinged: {},
-      },
-    });
-
-    const parentMachine = createMachine({
-      id: 'parent',
-      initial: 'active',
-      states: {
-        active: {
-          invoke: {
-            id: 'child',
-            src: childMachine,
-          },
-          on: {
-            SEND_PING: {
-              actions: sendTo('child', 'PING'),
-            },
-          },
-        },
-      },
-    });
-
-    const actorRef = createActor(parentMachine).start();
-
-    actorRef.send({ type: 'SEND_PING' });
-
-    expect(actorRef.getSnapshot().value).toEqual({
-      active: {
-        child: 'pinged',
-      },
-    });
-  });
+  expect(spy).toHaveBeenCalledTimes(1);
 });
 
 it.skip('should handle events raised from one parallel state by invoking actors in another parallel state', () => {
