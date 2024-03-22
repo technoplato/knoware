@@ -71,7 +71,6 @@ import {
   createActor,
   enqueueActions,
   fromPromise,
-  log,
   sendTo,
   setup,
   waitFor,
@@ -115,102 +114,17 @@ describe('bluetooth permission machine', () => {
   });
 
   it('should report permission to parent after a check', async () => {
-    const spy = jest.fn();
-
-    const fooMachine = setup({
-      types: {
-        context: {} as {
-          parent?: ActorRef<Snapshot<unknown>, ParentEvent>;
-          statuses: PermissionStatusMapType;
-        },
-        events: {} as PermissionMachineEvents,
-        input: {} as {
-          parent?: ActorRef<Snapshot<unknown>, ParentEvent>;
-        },
-      },
-
-      actions: {
-        checkedSendParent: enqueueActions(
-          ({ context, enqueue }, event: ParentEvent) => {
-            if (!context.parent) {
-              console.log(
-                'WARN: an attempt to send an event to a non-existent parent'
-              );
-              return;
-            }
-
-            console.log('sending event to parent', event);
-            console.log(JSON.stringify(event.type, null, 2));
-
-            enqueue.sendTo(context.parent, event);
-          }
-        ),
-      },
-
-      actors: {
-        checkAllPermissions: fromPromise(async () => {
-          const result =
-            await unimplementedPermissionMachineActions.checkAllPermissions();
-
-          // return InitialPermissionStatusMap;
-          return result;
-        }),
-      },
-    }).createMachine({
-      id: 'bluetoothPermissionActor',
-      context: ({ input }) => ({
-        parent: input.parent,
-        statuses: InitialPermissionStatusMap,
-      }),
-
-      initial: 'idle',
-
-      states: {
-        idle: {
-          on: {
-            triggerPermissionCheck: { target: 'checkingPermission' },
-          },
-        },
-
-        checkingPermission: {
-          on: {
-            triggerPermissionCheck: {
-              actions: [
-                log('triggerPermissionCheck within checkingPermission'),
-              ],
-            },
-          },
-          invoke: {
-            src: 'checkAllPermissions',
-            onDone: {
-              target: 'idle',
-              actions: [
-                assign({
-                  statuses: ({ event }) => event.output,
-                }),
-
-                {
-                  type: 'checkedSendParent',
-                  params({ event }) {
-                    console.log(JSON.stringify(event, null, 2));
-
-                    return {
-                      type: 'allPermissionsChecked',
-                      statuses: event.output,
-                    };
-                  },
-                },
-              ],
-            },
-          },
-        },
-      },
-    });
+    let result: any;
+    const spy = (
+      something: /* TODO: change type to whatever an event is in xstate*/ any
+    ) => {
+      result = something;
+    };
 
     const parentMachine = setup({
       types: {} as { events: ParentEvent },
       actors: {
-        fooMachine,
+        permissionCheckerAndRequesterMachine,
       },
     }).createMachine({
       on: {
@@ -227,17 +141,13 @@ describe('bluetooth permission machine', () => {
       },
       invoke: {
         id: 'someFooMachine',
-        src: 'fooMachine',
+        src: 'permissionCheckerAndRequesterMachine',
         input: ({ self }) => ({ parent: self }),
       },
-      entry: [
-        sendTo('someFooMachine', {
-          type: 'triggerPermissionCheck',
-        }),
-      ],
     });
 
     const actorRef = createActor(parentMachine).start();
+    actorRef.send({ type: 'triggerPermissionCheck' });
 
     await waitFor(
       actorRef,
@@ -245,7 +155,14 @@ describe('bluetooth permission machine', () => {
       { timeout: 0 }
     );
 
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(result).not.toBeNull();
+    expect(result.event).toStrictEqual({
+      type: 'allPermissionsChecked',
+      statuses: {
+        [Permissions.bluetooth]: PermissionStatuses.denied,
+        [Permissions.microphone]: PermissionStatuses.denied,
+      },
+    });
   });
 });
 
@@ -291,7 +208,6 @@ const permissionCheckerAndRequesterMachine = setup({
       const result =
         await unimplementedPermissionMachineActions.checkAllPermissions();
 
-      // return InitialPermissionStatusMap;
       return result;
     }),
   },
@@ -312,23 +228,11 @@ const permissionCheckerAndRequesterMachine = setup({
     },
 
     checkingPermission: {
-      on: {
-        triggerPermissionCheck: {
-          actions: [log('triggerPermissionCheck within checkingPermission')],
-        },
-      },
       invoke: {
         src: 'checkAllPermissions',
         onDone: {
           target: 'idle',
           actions: [
-            // {
-            //   type: 'checkedSendParent',
-            //   params({ context, event }) {
-            //     return { type: 'FOO' };
-            //   },
-            // },
-
             assign({
               statuses: ({ event }) => event.output,
             }),
