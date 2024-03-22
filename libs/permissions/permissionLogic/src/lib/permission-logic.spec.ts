@@ -88,17 +88,18 @@ const unimplementedPermissionMachineActions: PermissionMachineActions = {
   },
   requestBluetoothPermission: () => {
     return new Promise((resolve) => resolve(PermissionStatuses.denied));
-},
+  },
   requestMicrophonePermission: () => {
     return new Promise((resolve) => resolve(PermissionStatuses.denied));
   },
 } as const;
 
-type PermissionMachineEvents = { type: 'triggerPermissionCheck' } | {
-  type: 'triggerPermissionRequest';
-  permission: Permission;
-  
-};
+type PermissionMachineEvents =
+  | { type: 'triggerPermissionCheck' }
+  | {
+      type: 'triggerPermissionRequest';
+      permission: Permission;
+    };
 
 describe('permission requester and checker machine', () => {
   it('should check permission when triggered', async () => {
@@ -185,18 +186,15 @@ describe('permission requester and checker machine', () => {
         permission,
       });
 
-      await waitFor(
-        permissionActor,
-        (state) => state.value === 'idle',
-        {
-          timeout: 0,
-        }
-      );
+      await waitFor(permissionActor, (state) => state.value === 'idle', {
+        timeout: 0,
+      });
 
       expect(permissionActor.getSnapshot().value).toBe('idle');
       expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
         PermissionStatuses.granted
-      )
+      );
+    });
   });
 });
 
@@ -205,7 +203,11 @@ type ParentEvent =
       type: 'allPermissionsChecked';
       statuses: PermissionStatusMapType;
     }
-  | { type: 'permissionRequested', status: PermissionStatus, permission: Permission }    
+  | {
+      type: 'permissionRequested';
+      status: PermissionStatus;
+      permission: Permission;
+    }
   | { type: 'FOO' }
   | { type: 'triggerPermissionCheck' };
 
@@ -252,9 +254,9 @@ const permissionCheckerAndRequesterMachine = setup({
       const result = {
         permission: Permissions.bluetooth,
         status: PermissionStatuses.denied,
-      }
-      return Promise.resolve(result)
-    })
+      };
+      return Promise.resolve(result);
+    }),
   },
 }).createMachine({
   context: ({ input }) => ({
@@ -278,13 +280,15 @@ const permissionCheckerAndRequesterMachine = setup({
         onDone: {
           target: 'idle',
           actions: [
-            assign({statuses: ({context, event }) => {
-              console.log(JSON.stringify(event, null, 2));
-              return {
-                ...context.statuses,
-                [event.output.permission]: event.output.status,
-              };
-            }}),
+            assign({
+              statuses: ({ context, event }) => {
+                console.log(JSON.stringify(event, null, 2));
+                return {
+                  ...context.statuses,
+                  [event.output.permission]: event.output.status,
+                };
+              },
+            }),
 
             {
               type: 'checkedSendParent',
