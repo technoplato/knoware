@@ -87,10 +87,10 @@ const unimplementedPermissionMachineActions: PermissionMachineActions = {
     );
   },
   requestBluetoothPermission: () => {
-    return new Promise((resolve) => resolve(PermissionStatuses.denied));
+    return new Promise((resolve) => resolve(PermissionStatuses.granted));
   },
   requestMicrophonePermission: () => {
-    return new Promise((resolve) => resolve(PermissionStatuses.denied));
+    return new Promise((resolve) => resolve(PermissionStatuses.granted));
   },
 } as const;
 
@@ -181,14 +181,16 @@ describe('permission requester and checker machine', () => {
       ).start();
       const permission: Permission = Permissions.bluetooth;
 
+      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
+        PermissionStatuses.unasked
+      );
+
       permissionActor.send({
         type: 'triggerPermissionRequest',
         permission,
       });
 
-      await waitFor(permissionActor, (state) => state.value === 'idle', {
-        timeout: 0,
-      });
+      await waitFor(permissionActor, (state) => state.value === 'idle');
 
       expect(permissionActor.getSnapshot().value).toBe('idle');
       expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
@@ -248,15 +250,32 @@ const permissionCheckerAndRequesterMachine = setup({
       return result;
     }),
 
-    requestPermission: fromPromise(async () => {
-      // TODO: implement
-      // TODO: type params and extract which permission to get
-      const result = {
-        permission: Permissions.bluetooth,
-        status: PermissionStatuses.denied,
-      };
-      return Promise.resolve(result);
-    }),
+    requestPermission: fromPromise(
+      async ({
+        input: { permission },
+      }: {
+        input: { permission: Permission };
+      }): Promise<{
+        permission: Permission;
+        status: PermissionStatus;
+      }> => {
+        let status: undefined | PermissionStatus = undefined;
+
+        switch (permission) {
+          case Permissions.bluetooth:
+            status =
+              await unimplementedPermissionMachineActions.requestBluetoothPermission();
+
+          case Permissions.microphone:
+            status =
+              await unimplementedPermissionMachineActions.requestMicrophonePermission();
+        }
+
+        console.log(JSON.stringify({ permission, status }, null, 2));
+
+        return { status, permission };
+      }
+    ),
   },
 }).createMachine({
   context: ({ input }) => ({
@@ -277,6 +296,8 @@ const permissionCheckerAndRequesterMachine = setup({
     requestingPermission: {
       invoke: {
         src: 'requestPermission',
+        // @ts-expect-error TODO how do I get this type?
+        input: ({ context, event }) => ({ permission: event.permission }),
         onDone: {
           target: 'idle',
           actions: [
