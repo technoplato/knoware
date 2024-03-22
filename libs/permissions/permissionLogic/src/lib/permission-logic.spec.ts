@@ -21,7 +21,8 @@ type ApplicationLifecycleEvent =
 
 interface PermissionMachineActions {
   checkAllPermissions: () => Promise<PermissionStatusMapType>;
-  requestPermission: () => Promise<PermissionStatus>;
+  requestBluetoothPermission: () => Promise<PermissionStatus>;
+  requestMicrophonePermission: () => Promise<PermissionStatus>;
 }
 export type PermissionStatus =
   (typeof PermissionStatuses)[keyof typeof PermissionStatuses];
@@ -85,16 +86,22 @@ const unimplementedPermissionMachineActions: PermissionMachineActions = {
       })
     );
   },
-  requestPermission: () => {
+  requestBluetoothPermission: () => {
     return new Promise((resolve) => resolve(PermissionStatuses.denied));
-    throw new Error('unimplemented');
+},
+  requestMicrophonePermission: () => {
+    return new Promise((resolve) => resolve(PermissionStatuses.denied));
   },
 } as const;
 
-type PermissionMachineEvents = { type: 'triggerPermissionCheck' };
+type PermissionMachineEvents = { type: 'triggerPermissionCheck' } | {
+  type: 'triggerPermissionRequest';
+  permission: Permission;
+  
+};
 
-describe('bluetooth permission machine', () => {
-  it('should request permission when triggered', async () => {
+describe('permission requester and checker machine', () => {
+  it('should check permission when triggered', async () => {
     const bluetoothPermissionActor = createActor(
       permissionCheckerAndRequesterMachine,
       { input: { parent: undefined } }
@@ -164,6 +171,33 @@ describe('bluetooth permission machine', () => {
       },
     });
   });
+
+  describe('requesting permissions', () => {
+    it('should request permission when triggered', async () => {
+      const permissionActor = createActor(
+        permissionCheckerAndRequesterMachine,
+        { input: { parent: undefined } }
+      ).start();
+      const permission: Permission = Permissions.bluetooth;
+
+      permissionActor.send({
+        type: 'triggerPermissionRequest',
+        permission,
+      });
+
+      await waitFor(
+        permissionActor,
+        (state) => state.value === 'idle',
+        {
+          timeout: 0,
+        }
+      );
+
+      expect(permissionActor.getSnapshot().value).toBe('idle');
+      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
+        PermissionStatuses.granted
+      )
+  });
 });
 
 type ParentEvent =
@@ -171,6 +205,7 @@ type ParentEvent =
       type: 'allPermissionsChecked';
       statuses: PermissionStatusMapType;
     }
+  | { type: 'permissionRequested', status: PermissionStatus, permission: Permission }    
   | { type: 'FOO' }
   | { type: 'triggerPermissionCheck' };
 
@@ -210,9 +245,18 @@ const permissionCheckerAndRequesterMachine = setup({
 
       return result;
     }),
+
+    requestPermission: fromPromise(async () => {
+      // TODO: implement
+      // TODO: type params and extract which permission to get
+      const result = {
+        permission: Permissions.bluetooth,
+        status: PermissionStatuses.denied,
+      }
+      return Promise.resolve(result)
+    })
   },
 }).createMachine({
-  id: 'bluetoothPermissionActor',
   context: ({ input }) => ({
     parent: input.parent,
     statuses: InitialPermissionStatusMap,
@@ -223,11 +267,43 @@ const permissionCheckerAndRequesterMachine = setup({
   states: {
     idle: {
       on: {
-        triggerPermissionCheck: { target: 'checkingPermission' },
+        triggerPermissionCheck: { target: 'checkingPermissions' },
+        triggerPermissionRequest: { target: 'requestingPermission' },
       },
     },
 
-    checkingPermission: {
+    requestingPermission: {
+      invoke: {
+        src: 'requestPermission',
+        onDone: {
+          target: 'idle',
+          actions: [
+            assign({statuses: ({context, event }) => {
+              console.log(JSON.stringify(event, null, 2));
+              return {
+                ...context.statuses,
+                [event.output.permission]: event.output.status,
+              };
+            }}),
+
+            {
+              type: 'checkedSendParent',
+              params({ event }) {
+                console.log(JSON.stringify(event, null, 2));
+
+                return {
+                  type: 'permissionRequested',
+                  status: event.output.status,
+                  permission: event.output.permission,
+                };
+              },
+            },
+          ],
+        },
+      },
+    },
+
+    checkingPermissions: {
       invoke: {
         src: 'checkAllPermissions',
         onDone: {
