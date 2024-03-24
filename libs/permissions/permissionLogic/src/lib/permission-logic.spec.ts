@@ -1,69 +1,4 @@
 // permissionMonitoringMachine.test.ts
-export const Permissions = {
-  bluetooth: 'bluetooth',
-  microphone: 'microphone',
-} as const;
-export type Permission = (typeof Permissions)[keyof typeof Permissions];
-export const PermissionStatuses = {
-  unasked: 'unasked',
-  granted: 'granted',
-  denied: 'denied',
-  revoked: 'revoked',
-  blocked: 'blocked',
-} as const;
-const ApplicationLifecycleEvents = {
-  applicationForegrounded: 'applicationForegrounded',
-  applicationBackgrounded: 'applicationBackgrounded',
-} as const;
-
-type ApplicationLifecycleEvent =
-  (typeof ApplicationLifecycleEvents)[keyof typeof ApplicationLifecycleEvents];
-
-interface PermissionMachineActions {
-  checkAllPermissions: () => Promise<PermissionStatusMapType>;
-  requestBluetoothPermission: () => Promise<PermissionStatus>;
-  requestMicrophonePermission: () => Promise<PermissionStatus>;
-}
-export type PermissionStatus =
-  (typeof PermissionStatuses)[keyof typeof PermissionStatuses];
-
-type PermissionStatusMapType = Record<Permission, PermissionStatus>;
-const InitialPermissionStatusMap: PermissionStatusMapType = {
-  [Permissions.bluetooth]: PermissionStatuses.unasked,
-  [Permissions.microphone]: PermissionStatuses.unasked,
-} as const;
-
-const ApplicationLifecycleStates = {
-  applicationInForeground: 'application is in foreground',
-  applicationInBackground: 'application is in background',
-} as const;
-
-const PermissionCheckingStates = {
-  idle: 'idle',
-  checking: 'checking',
-} as const;
-
-type PermissionMonitoringMachineContext = {
-  permissionStatuses: PermissionStatusMapType;
-  listener;
-};
-type PermissionMonitoringMachineEvents =
-  | { type: 'checkPermissions' }
-  | {
-      type: 'permissionChecked';
-      permission: Permission;
-      status: PermissionStatus;
-    }
-  | {
-      type: 'triggerPermissionCheck';
-      permission: Permission;
-    }
-  | {
-      type: 'triggerPermissionRequest';
-      permission: Permission;
-    }
-  | { type: 'applicationForegrounded' }
-  | { type: 'applicationBackgrounded' };
 
 import {
   ActorRef,
@@ -77,29 +12,16 @@ import {
   waitFor,
 } from 'xstate';
 
-const unimplementedPermissionMachineActions: PermissionMachineActions = {
-  checkAllPermissions: () => {
-    return new Promise((resolve) =>
-      resolve({
-        [Permissions.bluetooth]: PermissionStatuses.denied,
-        [Permissions.microphone]: PermissionStatuses.denied,
-      })
-    );
-  },
-  requestBluetoothPermission: () => {
-    return new Promise((resolve) => resolve(PermissionStatuses.granted));
-  },
-  requestMicrophonePermission: () => {
-    return new Promise((resolve) => resolve(PermissionStatuses.granted));
-  },
-} as const;
-
-type PermissionMachineEvents =
-  | { type: 'triggerPermissionCheck' }
-  | {
-      type: 'triggerPermissionRequest';
-      permission: Permission;
-    };
+import { unimplementedPermissionMachineActions } from './permission.actions';
+import {
+  InitialPermissionStatusMap,
+  Permission,
+  PermissionMachineEvents,
+  PermissionStatus,
+  PermissionStatusMapType,
+  PermissionStatuses,
+  Permissions,
+} from './permission.types';
 
 describe('permission requester and checker machine', () => {
   it('should check permission when triggered', async () => {
@@ -255,7 +177,7 @@ describe('permission requester and checker machine', () => {
   });
 });
 
-type ParentEvent =
+export type ParentEvent =
   | {
       type: 'allPermissionsChecked';
       statuses: PermissionStatusMapType;
@@ -266,7 +188,6 @@ type ParentEvent =
       status: PermissionStatus;
       permission: Permission;
     }
-  | { type: 'FOO' }
   | { type: 'triggerPermissionCheck' };
 
 const permissionCheckerAndRequesterMachine = setup({
@@ -296,11 +217,49 @@ const permissionCheckerAndRequesterMachine = setup({
         enqueue.sendTo(context.parent, event);
       }
     ),
+
+    savePermissionRequestOutput: assign({
+      statuses: ({ context, event }) => {
+        console.log(JSON.stringify(event, null, 2));
+        return {
+          ...context.statuses,
+          // @ts-expect-error TODO how do I type these actions?
+          [event.output.permission]: event.output.status,
+        };
+      },
+    }),
+
+    savePermissionCheckResult: assign({
+      // @ts-expect-error TODO how do I type these actions?
+      statuses: ({ event }) => event.output,
+    }),
+
+    /**
+     * I tried putting reportPermissionRequestResult as an action, but it requied
+     * use of checkedSendParent and ran into this error when attempting to use that
+     *
+     * in onDone, but it didn't work
+     *
+     * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
+     */
+    // reportPermissionRequestResult: raise({
+    //   type: 'checkedSendParent',
+    //   params({ event }) {
+    //     console.log(JSON.stringify(event, null, 2));
+
+    //     return {
+    //       type: 'permissionRequested',
+    //       status: event.output.status,
+    //       permission: event.output.permission,
+    //     };
+    //   },
+    // }),
   },
 
   actors: {
     checkAllPermissions: fromPromise(async () => {
       const result =
+        // TODO how can i make this implementation more injectable and still ergnomic
         await unimplementedPermissionMachineActions.checkAllPermissions();
 
       return result;
@@ -320,10 +279,12 @@ const permissionCheckerAndRequesterMachine = setup({
         switch (permission) {
           case Permissions.bluetooth:
             status =
+              // TODO how can i make this implementation more injectable and still ergnomic
               await unimplementedPermissionMachineActions.requestBluetoothPermission();
 
           case Permissions.microphone:
             status =
+              // TODO how can i make this implementation more injectable and still ergnomic
               await unimplementedPermissionMachineActions.requestMicrophonePermission();
         }
 
@@ -334,7 +295,7 @@ const permissionCheckerAndRequesterMachine = setup({
     ),
   },
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOlwgBswBiAFwCdcoZ6AFMe1XWWXAe3wBhbGEwBrANoAGALqJQABz69a-fPJAAPRAFoArAHYAjCUNSDFgEx6AzDYAsRowBoQAT102DATlOXL9gBsNgAcIUaBRnaBAL4xrmhYeISk5FR0jMwc7JzcvAIASmAAjgCucLTSckggSipqGtoI+gYhJJYGod7WNoH2BvZ6rh4Ilt6BJFL9Ut5W3VI2tnEJGDgExCT0JeWwqvhQOVw8atQQAmBk+ABufGIXiWspm9sVBAccR-n4CAQ3mOiqARVKoaOq4QHqGpNHRtIz2ewhKROKSWEI2GZOYaIJwTKQhAyBbx6QJo1F6ezeZYgB7JDY4URiN6HPJqWCnc6XG53Eg09akeniJkfFkCWA-a58f4Q4GyUHKcENKG6KIkbxhPS2AkDFHebxY5qomyqjoLYmBc32KSxKn4PgQOAaXkpOX1ASNXSBSwTDpdHp9AZDdy6WxtFFBMa2NWhSxUp0bNJgF0Kt1K5p6JEkRZOAzWfpeEKBkb6eyZyxGWbeFFWr02WOrWmkLZlV77ZnHFOKeUQ90GkzmqZe80k4JGAL69GWEhoil6CJw8v2OtJPkkAWM1vC9v4eA1MHd1M6DqmKZGHx2OGLMv6nSDKR+IJ4vFGPQda1xIA */
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOlwgBswBiAFwCdcoZ6AFMe1XWWXAe3wBhbGEwBrANoAGALqJQABz69a-fPJAAPRAFoArAHYAjCUNSDANgN6AzBYAsB+3oA0IAJ66jtkvaM2pAA5gwKMLfzsAX0i3NCw8QlJyKjpGZg52Tm5eAQAlMABHAFc4Wmk5JBAlFTUNbQR9A0CSACYDG0CAThbbBydXD0QbTpIwqRsmzoNu8dto2IwcAmISekKS2FV8KEyuHjVqCAEwMnwANz4xE7ilxNX10oIdjj2c-AQCC8x0VQFy8o01Vwv3UlXqOmaRns9kCUiMRikLUCAU68LcngQ8IsJCClk6egsyKRensnXmIBuCRWOFEYieu2yalgh2OpwuVxIlOWpBp4npL0ZAlgH3OfG+IP+skBymBtTBXhsJE6wT0tksTkRnU66N0SMV3QMswsxocUgs0RiIHwfAgcA0XMS0pqAjqugsLWxbQ63V6jmcOoatmaiPsFiCQW8bXNlodK2SYCdspd8sDcJINj08IMPUcE0CAwx+ns6ZaRimnURZo9NnJsdIa2Kj22DP2ycUMpBroapZIxqk9g9JsCFhsRha9gDARaJGRpMz4T8nXstcWVJ5Ij5zYFrfw8EqQM7KZ0bVM-aM0xso-sGdLAZ0zikpnHYdhoT0UYtkSAA */
   context: ({ input }) => ({
     parent: input.parent,
     statuses: InitialPermissionStatusMap,
@@ -358,17 +319,17 @@ const permissionCheckerAndRequesterMachine = setup({
         onDone: {
           target: 'idle',
           actions: [
-            assign({
-              statuses: ({ context, event }) => {
-                console.log(JSON.stringify(event, null, 2));
-                return {
-                  ...context.statuses,
-                  [event.output.permission]: event.output.status,
-                };
-              },
-            }),
-
+            'savePermissionRequestOutput',
             {
+              /**
+               * I tried putting this action in the actions in setup as reportPermissionRequestResult
+               * as an action, but it requied
+               * use of checkedSendParent and ran into this error when attempting to use that
+               *
+               * in onDone, but it didn't work
+               *
+               * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
+               */
               type: 'checkedSendParent',
               params({ event }) {
                 console.log(JSON.stringify(event, null, 2));
@@ -391,9 +352,7 @@ const permissionCheckerAndRequesterMachine = setup({
         onDone: {
           target: 'idle',
           actions: [
-            assign({
-              statuses: ({ event }) => event.output,
-            }),
+            'savePermissionCheckResult',
 
             {
               type: 'checkedSendParent',
