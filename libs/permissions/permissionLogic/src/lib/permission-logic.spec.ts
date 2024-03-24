@@ -32,9 +32,7 @@ describe('permission requester and checker machine', () => {
 
     bluetoothPermissionActor.send({ type: 'triggerPermissionCheck' });
 
-    await waitFor(bluetoothPermissionActor, (state) => state.value === 'idle', {
-      timeout: 0,
-    });
+    await waitFor(bluetoothPermissionActor, (state) => state.value === 'idle');
 
     expect(bluetoothPermissionActor.getSnapshot().value).toBe('idle');
     expect(bluetoothPermissionActor.getSnapshot().context.statuses).toEqual({
@@ -81,8 +79,7 @@ describe('permission requester and checker machine', () => {
 
     await waitFor(
       actorRef,
-      (state) => state.children.someFooMachine?.getSnapshot().value === 'idle',
-      { timeout: 0 }
+      (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
     );
 
     expect(result).not.toBeNull();
@@ -162,9 +159,7 @@ describe('permission requester and checker machine', () => {
 
       await waitFor(
         actorRef,
-        (state) =>
-          state.children.someFooMachine?.getSnapshot().value === 'idle',
-        { timeout: 0 }
+        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
       );
 
       expect(result).not.toBeNull();
