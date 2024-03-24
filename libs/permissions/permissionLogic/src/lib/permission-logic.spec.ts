@@ -3,10 +3,14 @@
 import {
   ActorRef,
   Snapshot,
+  assertEvent,
   assign,
   createActor,
   enqueueActions,
+  fromCallback,
   fromPromise,
+  log,
+  raise,
   sendTo,
   setup,
   waitFor,
@@ -41,6 +45,22 @@ describe('permission requester and checker machine', () => {
     });
   });
 
+  type ApplicationLifecycleState =
+    | 'applicationForegrounded'
+    | 'applicationBackgrounded';
+  type ApplicationStateChangeHandler = (
+    event: ApplicationLifecycleState
+  ) => void;
+  const stubSubscribeToApplicationStateChanges = (
+    handleApplicationStateChange: ApplicationStateChangeHandler
+  ) => {
+    handleApplicationStateChange('applicationForegrounded');
+
+    return () => {
+      console.log('unsubscribed from fake handler');
+    };
+  };
+
   it('should report permission to parent after a check', async () => {
     let result: any;
     const spy = (
@@ -49,47 +69,267 @@ describe('permission requester and checker machine', () => {
       result = something;
     };
 
-    const parentMachine = setup({
-      types: {} as { events: ParentEvent },
+    const stubApplicationLifecycleReportingMachine =
+      // TODO figure out how to type what events this sends back
+      // : CallbackActorLogic<
+      //   ApplicationLifecycleEvents,
+      //   ApplicationLifecycleEvents
+      // >
+      fromCallback(({ sendBack }) => {
+        /**
+         * The real implementation of this actor should setup a subscription
+         * to the application lifecycle events for when the application
+         * is backgrounded or foregrounded and then report those messages via
+         * sendBack
+         *
+         * Implementations should also return a function that will unsubscribe
+         * any listeners
+         */
+        const unsubscribeApplicationStateListeners =
+          stubSubscribeToApplicationStateChanges((event) => {
+            switch (event) {
+              case 'applicationForegrounded':
+                sendBack({ type: 'applicationForegrounded' });
+                break;
+              case 'applicationBackgrounded':
+                sendBack({ type: 'applicationBackgrounded' });
+                break;
+            }
+          });
+
+        return unsubscribeApplicationStateListeners;
+      });
+
+    //   invoke: {
+    //   src: fromCallback(({ sendBack, receive, input }) => {
+    //     // ...
+    //   }),
+    //   input: ({ context, event }) => ({
+    //     userId: context.userId,
+    //   }),
+    // },
+
+    const permissionMonitoringMachine = setup({
+      types: {} as {
+        events: ParentEvent;
+        context: { permissionsStatuses: PermissionStatusMapType };
+      },
       actors: {
+        applicationLifecycleReportingMachine:
+          stubApplicationLifecycleReportingMachine,
         permissionCheckerAndRequesterMachine,
       },
-    }).createMachine({
-      on: {
-        allPermissionsChecked: {
-          actions: spy,
-        },
-        triggerPermissionCheck: {
-          actions: [
-            sendTo('someFooMachine', {
-              type: 'triggerPermissionCheck',
-            }),
-          ],
-        },
+      actions: {
+        triggerPermissionCheck: raise({ type: 'triggerPermissionCheck' }),
+        assignPermissionCheckResultsToContext: assign({
+          permissionsStatuses: ({ event }) => {
+            assertEvent(event, 'allPermissionsChecked');
+            console.log(JSON.stringify(event.statuses, null, 2));
+            return event.statuses;
+          },
+        }),
       },
-      invoke: {
-        id: 'someFooMachine',
-        src: 'permissionCheckerAndRequesterMachine',
-        input: ({ self }) => ({ parent: self }),
+    }).createMachine({
+      type: 'parallel',
+
+      context: {
+        permissionsStatuses: {} as PermissionStatusMapType,
+      },
+
+      // on: {
+      //   '*': {
+      //     actions: log(({ event, context }) => ({ event, context })),
+      //   },
+      // },
+
+      states: {
+        applicationLifecycle: {
+          on: {
+            applicationForegrounded: {
+              target: '.applicationIsInForeground',
+            },
+
+            applicationBackgrounded: {
+              target: '.applicationInInBackground',
+            },
+          },
+          initial: 'applicationIsInForeground',
+          invoke: {
+            src: 'applicationLifecycleReportingMachine',
+          },
+
+          states: {
+            applicationIsInForeground: {
+              entry: 'triggerPermissionCheck',
+            },
+            applicationInInBackground: {},
+          },
+        },
+
+        permissions: {
+          on: {
+            allPermissionsChecked: {
+              actions: 'assignPermissionCheckResultsToContext',
+            },
+            triggerPermissionCheck: {
+              actions: [
+                log('triggerPermissionCheck from root machine'),
+                sendTo('someFooMachine', {
+                  type: 'triggerPermissionCheck',
+                }),
+              ],
+            },
+          },
+          invoke: {
+            id: 'someFooMachine',
+            src: 'permissionCheckerAndRequesterMachine',
+            input: ({ self }) => ({ parent: self }),
+          },
+        },
       },
     });
 
-    const actorRef = createActor(parentMachine).start();
-    actorRef.send({ type: 'triggerPermissionCheck' });
+    const actorRef = createActor(permissionMonitoringMachine).start();
+
+    expect(actorRef.getSnapshot().context).toStrictEqual({
+      permissionsStatuses: {},
+    });
+    expect(actorRef.getSnapshot().value).toStrictEqual({
+      applicationLifecycle: 'applicationIsInForeground',
+      permissions: {},
+    });
+
+    await waitFor(actorRef, (state) => {
+      return (
+        // @ts-expect-error
+        state.children.someFooMachine?.getSnapshot().value ===
+        'checkingPermissions'
+      );
+    });
+
+    expect(
+      // @ts-expect-error
+      actorRef.getSnapshot().children.someFooMachine?.getSnapshot().value
+    ).toBe('checkingPermissions');
+
+    await waitFor(actorRef, (state) => {
+      // @ts-expect-error
+      return state.children.someFooMachine?.getSnapshot().value === 'idle';
+    });
+
+    expect(actorRef.getSnapshot().context).toStrictEqual({
+      permissionsStatuses: {
+        [Permissions.bluetooth]: PermissionStatuses.denied,
+        [Permissions.microphone]: PermissionStatuses.denied,
+      },
+    });
+
+    actorRef.send({
+      type: 'triggerPermissionRequest',
+      permission: Permissions.microphone,
+    });
 
     await waitFor(
       actorRef,
       (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
     );
-
-    expect(result).not.toBeNull();
-    expect(result.event).toStrictEqual({
-      type: 'allPermissionsChecked',
-      statuses: {
+    expect(actorRef.getSnapshot().context).toStrictEqual({
+      permissionsStatuses: {
         [Permissions.bluetooth]: PermissionStatuses.denied,
-        [Permissions.microphone]: PermissionStatuses.denied,
+        [Permissions.microphone]: PermissionStatuses.granted,
       },
     });
+
+    // expect(result).not.toBeNull();
+    // expect(result.event).toStrictEqual({
+    //   type: 'allPermissionsChecked',
+    //   statuses: {
+    //     [Permissions.bluetooth]: PermissionStatuses.denied,
+    //     [Permissions.microphone]: PermissionStatuses.denied,
+    //   },
+    // });
+  });
+
+  it('should return actions for parallel machines', () => {
+    const actual: string[] = [];
+    const machine = setup({}).createMachine({
+      type: 'parallel',
+      states: {
+        permission: {
+          on: {
+            foo: {
+              target: '.a2',
+            },
+          },
+          initial: 'a1',
+          states: {
+            a1: {
+              on: {
+                CHANGE: {
+                  target: 'a2',
+                  actions: [
+                    () => actual.push('do_a2'),
+                    () => actual.push('another_do_a2'),
+                  ],
+                },
+              },
+              entry: () => actual.push('enter_a1'),
+              exit: () => actual.push('exit_a1'),
+            },
+            a2: {
+              entry: () => actual.push('enter_a2'),
+              exit: () => actual.push('exit_a2'),
+            },
+          },
+          entry: () => actual.push('enter_a'),
+          exit: () => actual.push('exit_a'),
+        },
+        b: {
+          initial: 'b1',
+          states: {
+            b1: {
+              on: {
+                CHANGE: { target: 'b2', actions: () => actual.push('do_b2') },
+              },
+              entry: () => actual.push('enter_b1'),
+              exit: () => actual.push('exit_b1'),
+            },
+            b2: {
+              entry: () => actual.push('enter_b2'),
+              exit: () => actual.push('exit_b2'),
+            },
+          },
+          entry: () => actual.push('enter_b'),
+          exit: () => actual.push('exit_b'),
+        },
+      },
+    });
+
+    const actor = createActor(machine).start();
+    expect(actor.getSnapshot().value).toStrictEqual({
+      permission: 'a1',
+      b: 'b1',
+    });
+
+    actor.send({ type: 'foo' });
+    expect(actor.getSnapshot().value).toStrictEqual({
+      permission: 'a2',
+      b: 'b1',
+    });
+
+    // actual.length = 0;
+
+    // actor.send({ type: 'CHANGE' });
+
+    // expect(actual).toEqual([
+    //   'exit_b1', // reverse document order
+    //   'exit_a1',
+    //   'do_a2',
+    //   'another_do_a2',
+    //   'do_b2',
+    //   'enter_a2',
+    //   'enter_b2',
+    // ]);
   });
 
   describe('requesting permissions', () => {
@@ -170,6 +410,59 @@ describe('permission requester and checker machine', () => {
       });
     });
   });
+
+  describe('Permission Monitoring Machine', () => {
+    it('should report permission to parent after a check', async () => {
+      let result: any;
+      const spy = (
+        something: /* TODO: change type to whatever an event is in xstate*/ any
+      ) => {
+        result = something;
+      };
+
+      const parentMachine = setup({
+        types: {} as { events: ParentEvent },
+        actors: {
+          permissionCheckerAndRequesterMachine,
+        },
+      }).createMachine({
+        on: {
+          allPermissionsChecked: {
+            actions: spy,
+          },
+          triggerPermissionCheck: {
+            actions: [
+              sendTo('someFooMachine', {
+                type: 'triggerPermissionCheck',
+              }),
+            ],
+          },
+        },
+        invoke: {
+          id: 'someFooMachine',
+          src: 'permissionCheckerAndRequesterMachine',
+          input: ({ self }) => ({ parent: self }),
+        },
+      });
+
+      const actorRef = createActor(parentMachine).start();
+      actorRef.send({ type: 'triggerPermissionCheck' });
+
+      await waitFor(
+        actorRef,
+        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.event).toStrictEqual({
+        type: 'allPermissionsChecked',
+        statuses: {
+          [Permissions.bluetooth]: PermissionStatuses.denied,
+          [Permissions.microphone]: PermissionStatuses.denied,
+        },
+      });
+    });
+  });
 });
 
 export type ParentEvent =
@@ -183,7 +476,9 @@ export type ParentEvent =
       status: PermissionStatus;
       permission: Permission;
     }
-  | { type: 'triggerPermissionCheck' };
+  | { type: 'triggerPermissionCheck' }
+  | { type: 'applicationForegrounded' }
+  | { type: 'applicationBackgrounded' };
 
 const permissionCheckerAndRequesterMachine = setup({
   types: {
