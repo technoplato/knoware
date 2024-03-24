@@ -197,6 +197,61 @@ describe('permission requester and checker machine', () => {
         PermissionStatuses.granted
       );
     });
+
+    it('should report permission to parent after a request', async () => {
+      let result: any;
+      const spy = (
+        something: /* TODO: change type to whatever an event is in xstate*/ any
+      ) => {
+        result = something;
+      };
+
+      const parentMachine = setup({
+        types: {} as { events: ParentEvent },
+        actors: {
+          permissionCheckerAndRequesterMachine,
+        },
+      }).createMachine({
+        on: {
+          permissionRequested: {
+            actions: spy,
+          },
+          triggerPermissionRequest: {
+            actions: [
+              sendTo('someFooMachine', {
+                type: 'triggerPermissionRequest',
+                permission: Permissions.bluetooth,
+              }),
+            ],
+          },
+        },
+        invoke: {
+          id: 'someFooMachine',
+          src: 'permissionCheckerAndRequesterMachine',
+          input: ({ self }) => ({ parent: self }),
+        },
+      });
+
+      const actorRef = createActor(parentMachine).start();
+      actorRef.send({
+        type: 'triggerPermissionRequest',
+        permission: Permissions.bluetooth,
+      });
+
+      await waitFor(
+        actorRef,
+        (state) =>
+          state.children.someFooMachine?.getSnapshot().value === 'idle',
+        { timeout: 0 }
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.event).toStrictEqual({
+        type: 'permissionRequested',
+        status: PermissionStatuses.granted,
+        permission: Permissions.bluetooth,
+      });
+    });
   });
 });
 
@@ -205,6 +260,7 @@ type ParentEvent =
       type: 'allPermissionsChecked';
       statuses: PermissionStatusMapType;
     }
+  | { type: 'triggerPermissionRequest'; permission: Permission }
   | {
       type: 'permissionRequested';
       status: PermissionStatus;
@@ -278,6 +334,7 @@ const permissionCheckerAndRequesterMachine = setup({
     ),
   },
 }).createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOlwgBswBiAFwCdcoZ6AFMe1XWWXAe3wBhbGEwBrANoAGALqJQABz69a-fPJAAPRAFoArAHYAjCUNSDFgEx6AzDYAsRowBoQAT102DATlOXL9gBsNgAcIUaBRnaBAL4xrmhYeISk5FR0jMwc7JzcvAIASmAAjgCucLTSckggSipqGtoI+gYhJJYGod7WNoH2BvZ6rh4Ilt6BJFL9Ut5W3VI2tnEJGDgExCT0JeWwqvhQOVw8atQQAmBk+ABufGIXiWspm9sVBAccR-n4CAQ3mOiqARVKoaOq4QHqGpNHRtIz2ewhKROKSWEI2GZOYaIJwTKQhAyBbx6QJo1F6ezeZYgB7JDY4URiN6HPJqWCnc6XG53Eg09akeniJkfFkCWA-a58f4Q4GyUHKcENKG6KIkbxhPS2AkDFHebxY5qomyqjoLYmBc32KSxKn4PgQOAaXkpOX1ASNXSBSwTDpdHp9AZDdy6WxtFFBMa2NWhSxUp0bNJgF0Kt1K5p6JEkRZOAzWfpeEKBkb6eyZyxGWbeFFWr02WOrWmkLZlV77ZnHFOKeUQ90GkzmqZe80k4JGAL69GWEhoil6CJw8v2OtJPkkAWM1vC9v4eA1MHd1M6DqmKZGHx2OGLMv6nSDKR+IJ4vFGPQda1xIA */
   context: ({ input }) => ({
     parent: input.parent,
     statuses: InitialPermissionStatusMap,
