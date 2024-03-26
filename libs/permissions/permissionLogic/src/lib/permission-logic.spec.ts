@@ -306,16 +306,34 @@ export const EmptyPermissionSubscriberMap: PermissionSubscriberMap =
     }),
     {} as PermissionSubscriberMap
   );
+export type PermissionsMonitoringMachineContext = {
+  permissionsStatuses: PermissionStatusMapType;
+  permissionSubscribers: PermissionSubscriberMap;
+};
 
 describe('Permission Monitoring Machine', () => {
+  describe('Subscriptions', () => {
+    describe('Single Subscriber', () => {
+      it('should allow subscriptions from a subscriber to any permissions', () => {
+        // TODO
+        /*
+$$$$$$$$\  $$$$$$\  $$$$$$$\   $$$$$$\
+\__$$  __|$$  __$$\ $$  __$$\ $$  __$$\
+   $$ |   $$ /  $$ |$$ |  $$ |$$ /  $$ |
+   $$ |   $$ |  $$ |$$ |  $$ |$$ |  $$ |
+   $$ |   $$ |  $$ |$$ |  $$ |$$ |  $$ |
+   $$ |   $$ |  $$ |$$ |  $$ |$$ |  $$ |
+   $$ |    $$$$$$  |$$$$$$$  | $$$$$$  |
+   \__|    \______/ \_______/  \______/
+         */
+      });
+    });
+  });
   it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
     const permissionMonitoringMachine = setup({
       types: {} as {
         events: PermissionMonitoringMachineEvents;
-        context: {
-          permissionsStatuses: PermissionStatusMapType;
-          permissionSubscribers: PermissionSubscriberMap;
-        };
+        context: PermissionsMonitoringMachineContext;
       },
       actors: {
         applicationLifecycleReportingMachine:
