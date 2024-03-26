@@ -28,69 +28,219 @@ import {
   Permissions,
 } from './permission.types';
 
-describe('permission requester and checker machine', () => {
-  it('should check permission when triggered', async () => {
-    const bluetoothPermissionActor = createActor(
-      permissionCheckerAndRequesterMachine,
-      { input: { parent: undefined } }
-    ).start();
+export type ParentEvent =
+  | {
+      type: 'allPermissionsChecked';
+      statuses: PermissionStatusMapType;
+    }
+  | { type: 'triggerPermissionRequest'; permission: Permission }
+  | {
+      type: 'permissionRequestCompleted';
+      status: PermissionStatus;
+      permission: Permission;
+    }
+  | { type: 'triggerPermissionCheck' }
+  | { type: 'applicationForegrounded' }
+  | { type: 'applicationBackgrounded' };
 
-    bluetoothPermissionActor.send({ type: 'triggerPermissionCheck' });
+type ApplicationLifecycleState =
+  | 'applicationForegrounded'
+  | 'applicationBackgrounded';
+type ApplicationStateChangeHandler = (event: ApplicationLifecycleState) => void;
+const stubSubscribeToApplicationStateChanges = (
+  handleApplicationStateChange: ApplicationStateChangeHandler
+) => {
+  console.log('subscribed to fake handler');
+  handleApplicationStateChange('applicationForegrounded');
 
-    await waitFor(bluetoothPermissionActor, (state) => state.value === 'idle');
+  return () => {
+    console.log('unsubscribed from fake handler');
+  };
+};
 
-    expect(bluetoothPermissionActor.getSnapshot().value).toBe('idle');
-    expect(bluetoothPermissionActor.getSnapshot().context.statuses).toEqual({
-      [Permissions.bluetooth]: PermissionStatuses.denied,
-      [Permissions.microphone]: PermissionStatuses.denied,
+const stubApplicationLifecycleReportingActorLogic =
+  // TODO figure out how to type what events this sends back
+  fromCallback(({ sendBack }) => {
+    /**
+     * The real implementation of this actor should setup a subscription
+     * to the application lifecycle events for when the application
+     * is backgrounded or foregrounded and then report those messages via
+     * sendBack
+     *
+     * Implementations should also return a function that will unsubscribe
+     * any listeners
+     */
+    const unsubscribeApplicationStateListeners =
+      stubSubscribeToApplicationStateChanges((event) => {
+        switch (event) {
+          case 'applicationForegrounded':
+            sendBack({ type: 'applicationForegrounded' });
+            break;
+          case 'applicationBackgrounded':
+            sendBack({ type: 'applicationBackgrounded' });
+            break;
+        }
+      });
+
+    return unsubscribeApplicationStateListeners;
+  });
+
+describe('Permission Requester and Checker Machine', () => {
+  describe('Checking Permissions', () => {
+    it('should check permission when triggered', async () => {
+      const bluetoothPermissionActor = createActor(
+        permissionCheckerAndRequesterMachine,
+        { input: { parent: undefined } }
+      ).start();
+
+      bluetoothPermissionActor.send({ type: 'triggerPermissionCheck' });
+
+      await waitFor(
+        bluetoothPermissionActor,
+        (state) => state.value === 'idle'
+      );
+
+      expect(bluetoothPermissionActor.getSnapshot().value).toBe('idle');
+      expect(bluetoothPermissionActor.getSnapshot().context.statuses).toEqual({
+        [Permissions.bluetooth]: PermissionStatuses.denied,
+        [Permissions.microphone]: PermissionStatuses.denied,
+      });
+    });
+
+    it('should report permission to parent after a check', async () => {
+      let result: any;
+      const spy = (
+        something: /* TODO: change type to whatever an event is in xstate*/ any
+      ) => {
+        result = something;
+      };
+
+      const parentMachine = setup({
+        types: {} as { events: ParentEvent },
+        actors: {
+          permissionCheckerAndRequesterMachine,
+        },
+      }).createMachine({
+        on: {
+          allPermissionsChecked: {
+            actions: spy,
+          },
+          triggerPermissionCheck: {
+            actions: [
+              sendTo('someFooMachine', {
+                type: 'triggerPermissionCheck',
+              }),
+            ],
+          },
+        },
+        invoke: {
+          id: 'someFooMachine',
+          src: 'permissionCheckerAndRequesterMachine',
+          input: ({ self }) => ({ parent: self }),
+        },
+      });
+
+      const actorRef = createActor(parentMachine).start();
+      actorRef.send({ type: 'triggerPermissionCheck' });
+
+      await waitFor(
+        actorRef,
+        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.event).toStrictEqual({
+        type: 'allPermissionsChecked',
+        statuses: {
+          [Permissions.bluetooth]: PermissionStatuses.denied,
+          [Permissions.microphone]: PermissionStatuses.denied,
+        },
+      });
     });
   });
 
-  type ApplicationLifecycleState =
-    | 'applicationForegrounded'
-    | 'applicationBackgrounded';
-  type ApplicationStateChangeHandler = (
-    event: ApplicationLifecycleState
-  ) => void;
-  const stubSubscribeToApplicationStateChanges = (
-    handleApplicationStateChange: ApplicationStateChangeHandler
-  ) => {
-    console.log('subscribed to fake handler');
-    handleApplicationStateChange('applicationForegrounded');
+  describe('Requesting Permissions', () => {
+    it('should request permission when triggered', async () => {
+      const permissionActor = createActor(
+        permissionCheckerAndRequesterMachine,
+        { input: { parent: undefined } }
+      ).start();
+      const permission: Permission = Permissions.bluetooth;
 
-    return () => {
-      console.log('unsubscribed from fake handler');
-    };
-  };
+      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
+        PermissionStatuses.unasked
+      );
 
-  it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
-    const stubApplicationLifecycleReportingMachine =
-      // TODO figure out how to type what events this sends back
-      fromCallback(({ sendBack }) => {
-        /**
-         * The real implementation of this actor should setup a subscription
-         * to the application lifecycle events for when the application
-         * is backgrounded or foregrounded and then report those messages via
-         * sendBack
-         *
-         * Implementations should also return a function that will unsubscribe
-         * any listeners
-         */
-        const unsubscribeApplicationStateListeners =
-          stubSubscribeToApplicationStateChanges((event) => {
-            switch (event) {
-              case 'applicationForegrounded':
-                sendBack({ type: 'applicationForegrounded' });
-                break;
-              case 'applicationBackgrounded':
-                sendBack({ type: 'applicationBackgrounded' });
-                break;
-            }
-          });
-
-        return unsubscribeApplicationStateListeners;
+      permissionActor.send({
+        type: 'triggerPermissionRequest',
+        permission,
       });
 
+      await waitFor(permissionActor, (state) => state.value === 'idle');
+
+      expect(permissionActor.getSnapshot().value).toBe('idle');
+      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
+        PermissionStatuses.granted
+      );
+    });
+
+    it('should report permission to parent after a request', async () => {
+      let result: any;
+      const spy = (
+        something: /* TODO: change type to whatever an event is in xstate*/ any
+      ) => {
+        result = something;
+      };
+
+      const parentMachine = setup({
+        types: {} as { events: ParentEvent },
+        actors: {
+          permissionCheckerAndRequesterMachine,
+        },
+      }).createMachine({
+        on: {
+          permissionRequestCompleted: {
+            actions: spy,
+          },
+          triggerPermissionRequest: {
+            actions: [
+              sendTo('someFooMachine', {
+                type: 'triggerPermissionRequest',
+                permission: Permissions.bluetooth,
+              }),
+            ],
+          },
+        },
+        invoke: {
+          id: 'someFooMachine',
+          src: 'permissionCheckerAndRequesterMachine',
+          input: ({ self }) => ({ parent: self }),
+        },
+      });
+
+      const actorRef = createActor(parentMachine).start();
+      actorRef.send({
+        type: 'triggerPermissionRequest',
+        permission: Permissions.bluetooth,
+      });
+
+      await waitFor(
+        actorRef,
+        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.event).toStrictEqual({
+        type: 'permissionRequestCompleted',
+        status: PermissionStatuses.granted,
+        permission: Permissions.bluetooth,
+      });
+    });
+  });
+});
+
+describe('Permission Monitoring Machine', () => {
+  it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
     const permissionMonitoringMachine = setup({
       types: {} as {
         events: ParentEvent;
@@ -98,7 +248,7 @@ describe('permission requester and checker machine', () => {
       },
       actors: {
         applicationLifecycleReportingMachine:
-          stubApplicationLifecycleReportingMachine,
+          stubApplicationLifecycleReportingActorLogic,
         permissionCheckerAndRequesterMachine,
       },
 
@@ -135,7 +285,7 @@ describe('permission requester and checker machine', () => {
         ),
       },
     }).createMachine({
-      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O12Arq6Ple0CDGVYjw+Byo-ZWNUOBUINbLWyQwOxLaQjwZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2SvENwImdwgPJAOJsnDqkFMTFdhcXj8MBj-kEcFDeGiqFRBcH5f+RvCt-EGzJDw3wlHZYlcVEk0NEdSCqc8JEvMob2g0QigkABJWBUKkWR5EUZQ7xLMxLFbOc32SRdP1XBYLA8F8oiVBwkRsUJ43iCCcigs8UJYeDrwEJDqmKTD6iaFo8I9YsJ1LSxXCcWc3w1YkHGrdQJVcb84RhNwnC8acYxXI8jnYqkszNel8MkwiEH2GF-E8fZ3GxSNGxlYgPADYDwkhXZKx7NIgA */
+      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O13fJhXKhgeiArq6Ple0CDGzJVwq2sI6KeDzrcMQjz1zzYkVOGJKvsZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2DzLtwIpdwgPJAOJsmTqkFMTFdhcXj8MAz-kEcFDeGiqFRNdnzf+BUhlXYhaw8H8JR2WJXFRJNDSnUgqlvCR7zKJ8ENEIoJAASVgLCpFkeRFGUF8qzMSxbGVb9fw3eEAJ3CwPC-KIlQcJEbFCeN4lgnJ4JvTCWBQx8BHQ6pijw+omhaYiPUrOdq0sVwnGXH8NWJBwHGJCVXEA4VlnUNwnC8RcYy3C8jh4qkszNekSLksiEH2GF-E8fZ3GxSNAJlYhWysCDwkhXZ9yHNIgA */
       id: 'bigKahuna',
       type: 'parallel',
 
@@ -257,153 +407,11 @@ describe('permission requester and checker machine', () => {
     });
   });
 
-  describe('requesting permissions', () => {
-    it('should request permission when triggered', async () => {
-      const permissionActor = createActor(
-        permissionCheckerAndRequesterMachine,
-        { input: { parent: undefined } }
-      ).start();
-      const permission: Permission = Permissions.bluetooth;
-
-      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
-        PermissionStatuses.unasked
-      );
-
-      permissionActor.send({
-        type: 'triggerPermissionRequest',
-        permission,
-      });
-
-      await waitFor(permissionActor, (state) => state.value === 'idle');
-
-      expect(permissionActor.getSnapshot().value).toBe('idle');
-      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
-        PermissionStatuses.granted
-      );
-    });
-
-    it('should report permission to parent after a request', async () => {
-      let result: any;
-      const spy = (
-        something: /* TODO: change type to whatever an event is in xstate*/ any
-      ) => {
-        result = something;
-      };
-
-      const parentMachine = setup({
-        types: {} as { events: ParentEvent },
-        actors: {
-          permissionCheckerAndRequesterMachine,
-        },
-      }).createMachine({
-        on: {
-          permissionRequestCompleted: {
-            actions: spy,
-          },
-          triggerPermissionRequest: {
-            actions: [
-              sendTo('someFooMachine', {
-                type: 'triggerPermissionRequest',
-                permission: Permissions.bluetooth,
-              }),
-            ],
-          },
-        },
-        invoke: {
-          id: 'someFooMachine',
-          src: 'permissionCheckerAndRequesterMachine',
-          input: ({ self }) => ({ parent: self }),
-        },
-      });
-
-      const actorRef = createActor(parentMachine).start();
-      actorRef.send({
-        type: 'triggerPermissionRequest',
-        permission: Permissions.bluetooth,
-      });
-
-      await waitFor(
-        actorRef,
-        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
-      );
-
-      expect(result).not.toBeNull();
-      expect(result.event).toStrictEqual({
-        type: 'permissionRequestCompleted',
-        status: PermissionStatuses.granted,
-        permission: Permissions.bluetooth,
-      });
-    });
-  });
-
-  describe('Permission Monitoring Machine', () => {
-    it('should report permission to parent after a check', async () => {
-      let result: any;
-      const spy = (
-        something: /* TODO: change type to whatever an event is in xstate*/ any
-      ) => {
-        result = something;
-      };
-
-      const parentMachine = setup({
-        types: {} as { events: ParentEvent },
-        actors: {
-          permissionCheckerAndRequesterMachine,
-        },
-      }).createMachine({
-        on: {
-          allPermissionsChecked: {
-            actions: spy,
-          },
-          triggerPermissionCheck: {
-            actions: [
-              sendTo('someFooMachine', {
-                type: 'triggerPermissionCheck',
-              }),
-            ],
-          },
-        },
-        invoke: {
-          id: 'someFooMachine',
-          src: 'permissionCheckerAndRequesterMachine',
-          input: ({ self }) => ({ parent: self }),
-        },
-      });
-
-      const actorRef = createActor(parentMachine).start();
-      actorRef.send({ type: 'triggerPermissionCheck' });
-
-      await waitFor(
-        actorRef,
-        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
-      );
-
-      expect(result).not.toBeNull();
-      expect(result.event).toStrictEqual({
-        type: 'allPermissionsChecked',
-        statuses: {
-          [Permissions.bluetooth]: PermissionStatuses.denied,
-          [Permissions.microphone]: PermissionStatuses.denied,
-        },
-      });
-    });
+  it('should immediately report back to parent if permission is already granted', async () => {});
+  describe('Blocked Permission', () => {
+    it('should immediately report back to parent if permission is already granted', async () => {});
   });
 });
-
-export type ParentEvent =
-  | {
-      type: 'allPermissionsChecked';
-      statuses: PermissionStatusMapType;
-    }
-  | { type: 'triggerPermissionRequest'; permission: Permission }
-  | {
-      type: 'permissionRequestCompleted';
-      status: PermissionStatus;
-      permission: Permission;
-    }
-  | { type: 'triggerPermissionCheck' }
-  | { type: 'applicationForegrounded' }
-  | { type: 'applicationBackgrounded' };
 
 const permissionCheckerAndRequesterMachine = setup({
   types: {
@@ -427,11 +435,6 @@ const permissionCheckerAndRequesterMachine = setup({
           return;
         }
 
-        if (event.type === 'permissionRequestCompleted') {
-          console.log('sending event to parent', event);
-        }
-
-        console.log('sending event to parent', event);
         enqueue.sendTo(context.parent, event);
       }
     ),
