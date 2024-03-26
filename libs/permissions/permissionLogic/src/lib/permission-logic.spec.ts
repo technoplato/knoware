@@ -15,6 +15,7 @@ import {
   sendTo,
   setup,
   waitFor,
+  AnyActorRef,
 } from 'xstate';
 
 import { unimplementedPermissionMachineActions } from './permission.actions';
@@ -55,7 +56,7 @@ const countingMachineThatNeedsPermissionAt3 = setup({
               },
 
               {
-                target: ['disabled', '#handlingPermissions.active'],
+                target: ['disabled', '#permissionHandler.active'],
               },
             ],
           },
@@ -71,7 +72,7 @@ const countingMachineThatNeedsPermissionAt3 = setup({
         "permissions. Right now we're doing everything inline" +
         'but this will be extracted to something that is ' +
         'straightforward for the end developer to use and test',
-      id: 'handlingPermissions',
+      id: 'permissionHandler',
       /**
        * what should go here....
        *
@@ -288,12 +289,33 @@ describe('Permission Requester and Checker Machine', () => {
   });
 });
 
+export type PermissionSubscribers = Array<AnyActorRef>;
+export type PermissionSubscriberMap = Record<Permission, PermissionSubscribers>;
+
+/**
+ *  A map of that looks like this to start:
+ *  {
+ *    bluetooth: [],
+ *    microphone: [],
+ *  }
+ */
+export const EmptyPermissionSubscriberMap: PermissionSubscriberMap =
+  Object.values(Permissions).reduce(
+    (acc, permission) => ({
+      ...acc,
+    }),
+    {} as PermissionSubscriberMap
+  );
+
 describe('Permission Monitoring Machine', () => {
   it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
     const permissionMonitoringMachine = setup({
       types: {} as {
         events: PermissionMonitoringMachineEvents;
-        context: { permissionsStatuses: PermissionStatusMapType };
+        context: {
+          permissionsStatuses: PermissionStatusMapType;
+          permissionSubscribers: PermissionSubscriberMap;
+        };
       },
       actors: {
         applicationLifecycleReportingMachine:
@@ -340,6 +362,7 @@ describe('Permission Monitoring Machine', () => {
 
       context: {
         permissionsStatuses: InitialPermissionStatusMap,
+        permissionSubscribers: EmptyPermissionSubscriberMap,
       },
       states: {
         applicationLifecycle: {
@@ -407,11 +430,9 @@ describe('Permission Monitoring Machine', () => {
       },
     }).start();
 
-    expect(actorRef.getSnapshot().context).toStrictEqual({
-      permissionsStatuses: {
-        [Permissions.bluetooth]: PermissionStatuses.unasked,
-        [permission]: PermissionStatuses.unasked,
-      },
+    expect(actorRef.getSnapshot().context.permissionsStatuses).toStrictEqual({
+      [Permissions.bluetooth]: PermissionStatuses.unasked,
+      [permission]: PermissionStatuses.unasked,
     });
 
     expect(actorRef.getSnapshot().value).toStrictEqual({
@@ -426,11 +447,9 @@ describe('Permission Monitoring Machine', () => {
       );
     });
 
-    expect(actorRef.getSnapshot().context).toStrictEqual({
-      permissionsStatuses: {
-        [Permissions.bluetooth]: PermissionStatuses.denied,
-        [permission]: PermissionStatuses.denied,
-      },
+    expect(actorRef.getSnapshot().context.permissionsStatuses).toStrictEqual({
+      [Permissions.bluetooth]: PermissionStatuses.denied,
+      [permission]: PermissionStatuses.denied,
     });
 
     actorRef.send({
@@ -448,11 +467,9 @@ describe('Permission Monitoring Machine', () => {
       return state.children.someFooMachine?.getSnapshot().value === 'idle';
     });
 
-    expect(actorRef.getSnapshot().context).toStrictEqual({
-      permissionsStatuses: {
-        [Permissions.bluetooth]: PermissionStatuses.denied,
-        [permission]: PermissionStatuses.granted,
-      },
+    expect(actorRef.getSnapshot().context.permissionsStatuses).toStrictEqual({
+      [Permissions.bluetooth]: PermissionStatuses.denied,
+      [permission]: PermissionStatuses.granted,
     });
   });
 
