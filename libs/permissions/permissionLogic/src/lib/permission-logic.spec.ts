@@ -118,9 +118,24 @@ describe('permission requester and checker machine', () => {
             };
           },
         }),
+        raisePermissionCheck: raise({ type: 'triggerPermissionCheck' }),
+        sendPermissionCheck: sendTo('someFooMachine', {
+          type: 'triggerPermissionCheck',
+        }),
+        sendPermissionRequest: sendTo(
+          'someFooMachine',
+          ({ context, event }) => {
+            assertEvent(event, 'triggerPermissionRequest');
+
+            return {
+              type: 'triggerPermissionRequest',
+              permission: event.permission,
+            };
+          }
+        ),
       },
     }).createMachine({
-      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaAKxWA7MQAcAJgCcrpwDYnVgIx2ALAA0IDyITupOxOrqAMzhDg4xDuq2Pn4AvunBaJi4hCQi1HRGbJzcfALCFEXiLABCWDQA1gpKBCoQGtpIIHoGJSbmCNZWLsSjHg62Vh4xLlNuwaEIMT4OxD5Oqf4+-up2sR6Z2ejY+ETEZGAyALaosAYssMKUlAAK13cPErAAwjjcJpqLQmPqGCSDRAxfyRdQwhIeHZWGJw-ZLSxrdQbWa2Wxw-wuabRJzHEA5M75S6fe6PAjPegydAwGQfW40iT-QFdUH6cHGHpDCz+DzEHbqPxzTzOGK2FwedHDHwuGKi1LqBw7DUeKz7Byk8l5C5XNnfJ6CBlM66sr60gBKYAAjng4PRuT0wQMBWFYepJoTJg55jDvAroZEZbinKs4lGPEcsmTToaSMabT9BKn2Sx7U6XcDurpeZ7QEMZVi-C4CbqnA4fOoXKHJo4YtDAy2ptCrJkEwQmCp4D0DecsDz+hCvcNtVZxnKpjM5gsnAqLDWsbK5oTwr7ov59Unh6RqmISuwuLx+GBR3yCJDJykZ5NprN5rKlyEoSqvC3prYnE4fC2UZ7rkB6FMeEinuUF6HqIxQSAAkrA8FSLI8iKMoV7FmYlg1tOzgRNqeK+g4iIxAqPgePYuJ2FsexuB4mzARSFxgXBLCQeeAgwTUJTIchDTNK0GHukW44ljhCRRP4MQzFMsTOFGoY+FRLi+OKJG2Axti7gmQ6Upmpp0phYnYQgzhREkDhWM4-i1rMMKhvYslKuKLb+EiLjdukQA */
+      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6g2GTmIu3USJsDmSTn2NiiznmYQcNlFUVCm12UycRI8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4kygkyqwOKa+tELSHQuW48bhX1rJz6ilGkgm21fQRpjksB3O12Arq6Ple0CDOVYjw+Byo-ZWdUORUINbLWyQ4OxLaQjwZMkEJgqeDdZOnLC8vpg71DKUOUWpX1QpybWyBdFDGyV4huBHqdZw5LuRNk4dUgpiYrsLi8fhgMf8gjgobw0KzqLz6VL-yNixz4g2ZIeNVZmJBFXCTQ0R1IKozwkC8ymvSDRCKCQAElYGQqRZHkRRlFvEszEsVsXzfRd4U-VcLA8Z8RmVBwJVCeN4jAnIINPJCWFgq8BAQ6pinQ+omhaHCPWLCdS0sVwnBnV81WJBxq3FHwvzhGE3G1SVUlfZdDyOZiqSzM16Vw0T8IQfYYX8Tx9ncbFI0bOViA8GVQmrcJIV2SsezSIA */
       id: 'bigKahuna',
       type: 'parallel',
 
@@ -135,7 +150,7 @@ describe('permission requester and checker machine', () => {
             },
 
             applicationBackgrounded: {
-              target: '.applicationInInBackground',
+              target: '.applicationInBackground',
             },
           },
           initial: 'applicationIsInForeground',
@@ -145,9 +160,9 @@ describe('permission requester and checker machine', () => {
 
           states: {
             applicationIsInForeground: {
-              entry: raise({ type: 'triggerPermissionCheck' }),
+              entry: 'raisePermissionCheck',
             },
-            applicationInInBackground: {},
+            applicationInBackground: {},
           },
         },
 
@@ -157,24 +172,12 @@ describe('permission requester and checker machine', () => {
               actions: 'assignPermissionCheckResultsToContext',
             },
             triggerPermissionCheck: {
-              actions: [
-                log('permission trigger check'),
-                sendTo('someFooMachine', {
-                  type: 'triggerPermissionCheck',
-                }),
-              ],
+              actions: [log('permission trigger check'), 'sendPermissionCheck'],
             },
             triggerPermissionRequest: {
               actions: [
                 log('triggering permission request'),
-                sendTo('someFooMachine', ({ context, event }) => {
-                  assertEvent(event, 'triggerPermissionRequest');
-
-                  return {
-                    type: 'triggerPermissionRequest',
-                    permission: event.permission,
-                  };
-                }),
+                'sendPermissionRequest',
               ],
             },
 
