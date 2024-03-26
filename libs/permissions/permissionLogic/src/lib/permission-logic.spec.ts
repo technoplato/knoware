@@ -111,7 +111,7 @@ describe('permission requester and checker machine', () => {
         }),
         assignPermissionRequestResultToContext: assign({
           permissionsStatuses: ({ event, context }) => {
-            assertEvent(event, 'permissionRequested');
+            assertEvent(event, 'permissionRequestCompleted');
             return {
               ...context.permissionsStatuses,
               [event.permission]: event.status,
@@ -135,7 +135,7 @@ describe('permission requester and checker machine', () => {
         ),
       },
     }).createMachine({
-      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6g2GTmIu3USJsDmSTn2NiiznmYQcNlFUVCm12UycRI8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4kygkyqwOKa+tELSHQuW48bhX1rJz6ilGkgm21fQRpjksB3O12Arq6Ple0CDOVYjw+Byo-ZWdUORUINbLWyQ4OxLaQjwZMkEJgqeDdZOnLC8vpg71DKUOUWpX1QpybWyBdFDGyV4huBHqdZw5LuRNk4dUgpiYrsLi8fhgMf8gjgobw0KzqLz6VL-yNixz4g2ZIeNVZmJBFXCTQ0R1IKozwkC8ymvSDRCKCQAElYGQqRZHkRRlFvEszEsVsXzfRd4U-VcLA8Z8RmVBwJVCeN4jAnIINPJCWFgq8BAQ6pinQ+omhaHCPWLCdS0sVwnBnV81WJBxq3FHwvzhGE3G1SVUlfZdDyOZiqSzM16Vw0T8IQfYYX8Tx9ncbFI0bOViA8GVQmrcJIV2SsezSIA */
+      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O12Arq6Ple0CDGVYjw+Byo-ZWNUOBUINbLWyQwOxLaQjwZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2SvENwImdwgPJAOJsnDqkFMTFdhcXj8MBj-kEcFDeGiqFRBcH5f+RvCt-EGzJDw3wlHZYlcVEk0NEdSCqc8JEvMob2g0QigkABJWBUKkWR5EUZQ7xLMxLFbOc32SRdP1XBYLA8F8oiVBwkRsUJ43iCCcigs8UJYeDrwEJDqmKTD6iaFo8I9YsJ1LSxXCcWc3w1YkHGrdQJVcb84RhNwnC8acYxXI8jnYqkszNel8MkwiEH2GF-E8fZ3GxSNGxlYgPADYDwkhXZKx7NIgA */
       id: 'bigKahuna',
       type: 'parallel',
 
@@ -181,7 +181,7 @@ describe('permission requester and checker machine', () => {
               ],
             },
 
-            permissionRequested: {
+            permissionRequestCompleted: {
               actions: 'assignPermissionRequestResultToContext',
             },
           },
@@ -297,7 +297,7 @@ describe('permission requester and checker machine', () => {
         },
       }).createMachine({
         on: {
-          permissionRequested: {
+          permissionRequestCompleted: {
             actions: spy,
           },
           triggerPermissionRequest: {
@@ -329,7 +329,7 @@ describe('permission requester and checker machine', () => {
 
       expect(result).not.toBeNull();
       expect(result.event).toStrictEqual({
-        type: 'permissionRequested',
+        type: 'permissionRequestCompleted',
         status: PermissionStatuses.granted,
         permission: Permissions.bluetooth,
       });
@@ -397,7 +397,7 @@ export type ParentEvent =
     }
   | { type: 'triggerPermissionRequest'; permission: Permission }
   | {
-      type: 'permissionRequested';
+      type: 'permissionRequestCompleted';
       status: PermissionStatus;
       permission: Permission;
     }
@@ -427,7 +427,7 @@ const permissionCheckerAndRequesterMachine = setup({
           return;
         }
 
-        if (event.type === 'permissionRequested') {
+        if (event.type === 'permissionRequestCompleted') {
           console.log('sending event to parent', event);
         }
 
@@ -465,7 +465,7 @@ const permissionCheckerAndRequesterMachine = setup({
     //     console.log(JSON.stringify(event, null, 2));
 
     //     return {
-    //       type: 'permissionRequested',
+    //       type: 'permissionRequestCompleted',
     //       status: event.output.status,
     //       permission: event.output.permission,
     //     };
@@ -553,7 +553,7 @@ const permissionCheckerAndRequesterMachine = setup({
               type: 'checkedSendParent',
               params({ event }) {
                 return {
-                  type: 'permissionRequested',
+                  type: 'permissionRequestCompleted',
                   status: event.output.status,
                   permission: event.output.permission,
                 };
