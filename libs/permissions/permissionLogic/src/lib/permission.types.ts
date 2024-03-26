@@ -13,14 +13,6 @@ export const PermissionStatuses = {
 export type PermissionStatus =
   (typeof PermissionStatuses)[keyof typeof PermissionStatuses];
 
-const ApplicationLifecycleEvents = {
-  applicationForegrounded: 'applicationForegrounded',
-  applicationBackgrounded: 'applicationBackgrounded',
-} as const;
-
-export type ApplicationLifecycleEvent =
-  (typeof ApplicationLifecycleEvents)[keyof typeof ApplicationLifecycleEvents];
-
 export interface PermissionMachineActions {
   checkAllPermissions: () => Promise<PermissionStatusMapType>;
   requestBluetoothPermission: () => Promise<PermissionStatus>;
@@ -28,11 +20,6 @@ export interface PermissionMachineActions {
 }
 
 export type PermissionStatusMapType = Record<Permission, PermissionStatus>;
-
-export const ApplicationLifecycleStates = {
-  applicationInForeground: 'application is in foreground',
-  applicationInBackground: 'application is in background',
-} as const;
 
 export const PermissionCheckingStates = {
   idle: 'idle',
