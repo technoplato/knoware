@@ -30,6 +30,110 @@ import {
 import { InitialPermissionStatusMap } from './permission.fixtures';
 import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
 
+const countingMachineThatNeedsPermissionAt3 = setup({
+  types: {
+    context: {} as { count: number; permissionStatus: PermissionStatus },
+    events: { type: 'count.inc' },
+  },
+}).createMachine({
+  type: 'parallel',
+  id: 'countingAndPermissions',
+  context: {
+    count: 0,
+    permissionStatus: PermissionStatuses.unasked,
+  },
+  states: {
+    counting: {
+      initial: 'enabled',
+      states: {
+        enabled: {
+          on: {
+            'count.inc': [
+              {
+                guard: ({ context }) => context.count < 3,
+                actions: assign({ count: ({ context }) => context.count + 1 }),
+              },
+
+              {
+                target: ['disabled', '#handlingPermissions.active'],
+              },
+            ],
+          },
+        },
+        disabled: { id: 'countingDisabled' },
+      },
+    },
+
+    handlingPermissions: {
+      description:
+        'This state is a placeholder for designing' +
+        'how we will allow feature machines to handle thier ' +
+        "permissions. Right now we're doing everything inline" +
+        'but this will be extracted to something that is ' +
+        'straightforward for the end developer to use and test',
+      id: 'handlingPermissions',
+      /**
+       * what should go here....
+       *
+       * 1) This might need to be a parallel state machine if we want to
+       * have a functionality for handling revoked permissions
+       *
+       * - we need to handle
+       * permission granted,
+       * permission denied,
+       * permission revoked
+       *
+       * 🤔 Thoughts:
+       * This could just be an actor we invoke that communicates
+       * up to the permission monitoring machine...
+       * input: [permission]
+       *
+       *
+       */
+      initial: 'idle',
+      states: {
+        idle: {},
+        active: {},
+      },
+    },
+  },
+});
+
+describe('Counting Machine That Needs Permission At 3', () => {
+  it('should not increment count beyond 3, but rather ask permission', async () => {
+    const countingActor = createActor(
+      countingMachineThatNeedsPermissionAt3
+    ).start();
+    countingActor.send({ type: 'count.inc' });
+    countingActor.send({ type: 'count.inc' });
+    countingActor.send({ type: 'count.inc' });
+    countingActor.send({ type: 'count.inc' });
+    expect(countingActor.getSnapshot().context.count).toBe(3);
+    expect(countingActor.getSnapshot().value).toStrictEqual({
+      counting: 'disabled',
+      handlingPermissions: 'active',
+    });
+  });
+
+  it('should start in idle state', async () => {
+    const countingActor = createActor(
+      countingMachineThatNeedsPermissionAt3
+    ).start();
+    expect(countingActor.getSnapshot().value).toStrictEqual({
+      counting: 'enabled',
+      handlingPermissions: 'idle',
+    });
+  });
+
+  it('should increment count', async () => {
+    const countingActor = createActor(
+      countingMachineThatNeedsPermissionAt3
+    ).start();
+    countingActor.send({ type: 'count.inc' });
+    expect(countingActor.getSnapshot().context.count).toBe(1);
+  });
+});
+
 describe('Permission Requester and Checker Machine', () => {
   describe('Checking Permissions', () => {
     it('should check permission when triggered', async () => {
