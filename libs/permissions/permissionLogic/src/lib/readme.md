@@ -1,0 +1,1 @@
+This permissions handling library has been built in a platform agnostic way to enable maximium ease of use across different platforms, and to ensure that obnoxious framework and platform dependencies don't get in the way of understanding the intent of the logic. 
