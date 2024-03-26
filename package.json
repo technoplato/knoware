@@ -5,6 +5,7 @@
   "scripts": {},
   "private": true,
   "dependencies": {
+    "@statelyai/inspect": "^0.2.5",
     "tslib": "^2.3.0",
     "xstate": "^5.9.1"
   },
