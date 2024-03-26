@@ -19,7 +19,6 @@ import {
 
 import { unimplementedPermissionMachineActions } from './permission.actions';
 import {
-  InitialPermissionStatusMap,
   Permission,
   PermissionMachineEvents,
   PermissionStatus,
@@ -27,8 +26,9 @@ import {
   PermissionStatuses,
   Permissions,
 } from './permission.types';
+import { InitialPermissionStatusMap } from './permission.fixtures';
 
-export type ParentEvent =
+export type PermissionMonitoringMachineEvents =
   | {
       type: 'allPermissionsChecked';
       statuses: PermissionStatusMapType;
@@ -46,6 +46,7 @@ export type ParentEvent =
 type ApplicationLifecycleState =
   | 'applicationForegrounded'
   | 'applicationBackgrounded';
+
 type ApplicationStateChangeHandler = (event: ApplicationLifecycleState) => void;
 const stubSubscribeToApplicationStateChanges = (
   handleApplicationStateChange: ApplicationStateChangeHandler
@@ -116,7 +117,7 @@ describe('Permission Requester and Checker Machine', () => {
       };
 
       const parentMachine = setup({
-        types: {} as { events: ParentEvent },
+        types: {} as { events: PermissionMonitoringMachineEvents },
         actors: {
           permissionCheckerAndRequesterMachine,
         },
@@ -193,7 +194,7 @@ describe('Permission Requester and Checker Machine', () => {
       };
 
       const parentMachine = setup({
-        types: {} as { events: ParentEvent },
+        types: {} as { events: PermissionMonitoringMachineEvents },
         actors: {
           permissionCheckerAndRequesterMachine,
         },
@@ -243,7 +244,7 @@ describe('Permission Monitoring Machine', () => {
   it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
     const permissionMonitoringMachine = setup({
       types: {} as {
-        events: ParentEvent;
+        events: PermissionMonitoringMachineEvents;
         context: { permissionsStatuses: PermissionStatusMapType };
       },
       actors: {
@@ -416,18 +417,18 @@ describe('Permission Monitoring Machine', () => {
 const permissionCheckerAndRequesterMachine = setup({
   types: {
     context: {} as {
-      parent?: ActorRef<Snapshot<unknown>, ParentEvent>;
+      parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
       statuses: PermissionStatusMapType;
     },
     events: {} as PermissionMachineEvents,
     input: {} as {
-      parent?: ActorRef<Snapshot<unknown>, ParentEvent>;
+      parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
     },
   },
 
   actions: {
     checkedSendParent: enqueueActions(
-      ({ context, enqueue }, event: ParentEvent) => {
+      ({ context, enqueue }, event: PermissionMonitoringMachineEvents) => {
         if (!context.parent) {
           console.log(
             'WARN: an attempt to send an event to a non-existent parent'

@@ -28,10 +28,6 @@ export interface PermissionMachineActions {
 }
 
 export type PermissionStatusMapType = Record<Permission, PermissionStatus>;
-export const InitialPermissionStatusMap: PermissionStatusMapType = {
-  [Permissions.bluetooth]: PermissionStatuses.unasked,
-  [Permissions.microphone]: PermissionStatuses.unasked,
-} as const;
 
 export const ApplicationLifecycleStates = {
   applicationInForeground: 'application is in foreground',
