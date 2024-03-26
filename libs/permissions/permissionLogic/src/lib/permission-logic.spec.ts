@@ -2,6 +2,7 @@
 
 import {
   ActorRef,
+  InspectionEvent,
   Snapshot,
   assertEvent,
   assign,
@@ -14,13 +15,7 @@ import {
   sendTo,
   setup,
   waitFor,
-  InspectionEvent,
 } from 'xstate';
-
-import {
-  createWebSocketInspector,
-  createSkyInspector,
-} from '@statelyai/inspect';
 
 import { unimplementedPermissionMachineActions } from './permission.actions';
 import {
@@ -68,7 +63,7 @@ describe('permission requester and checker machine', () => {
     };
   };
 
-  it('should report permission to parent after a check', async () => {
+  it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
     const stubApplicationLifecycleReportingMachine =
       // TODO figure out how to type what events this sends back
       fromCallback(({ sendBack }) => {
@@ -125,6 +120,7 @@ describe('permission requester and checker machine', () => {
         }),
       },
     }).createMachine({
+      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaAKxWA7MQAcAJgCcrpwDYnVgIx2ALAA0IDyITupOxOrqAMzhDg4xDuq2Pn4AvunBaJi4hCQi1HRGbJzcfALCFEXiLABCWDQA1gpKBCoQGtpIIHoGJSbmCNZWLsSjHg62Vh4xLlNuwaEIMT4OxD5Oqf4+-up2sR6Z2ejY+ETEZGAyALaosAYssMKUlAAK13cPErAAwjjcJpqLQmPqGCSDRAxfyRdQwhIeHZWGJw-ZLSxrdQbWa2Wxw-wuabRJzHEA5M75S6fe6PAjPegydAwGQfW40iT-QFdUH6cHGHpDCz+DzEHbqPxzTzOGK2FwedHDHwuGKi1LqBw7DUeKz7Byk8l5C5XNnfJ6CBlM66sr60gBKYAAjng4PRuT0wQMBWFYepJoTJg55jDvAroZEZbinKs4lGPEcsmTToaSMabT9BKn2Sx7U6XcDurpeZ7QEMZVi-C4CbqnA4fOoXKHJo4YtDAy2ptCrJkEwQmCp4D0DecsDz+hCvcNtVZxnKpjM5gsnAqLDWsbK5oTwr7ov59Unh6RqmISuwuLx+GBR3yCJDJykZ5NprN5rKlyEoSqvC3prYnE4fC2UZ7rkB6FMeEinuUF6HqIxQSAAkrA8FSLI8iKMoV7FmYlg1tOzgRNqeK+g4iIxAqPgePYuJ2FsexuB4mzARSFxgXBLCQeeAgwTUJTIchDTNK0GHukW44ljhCRRP4MQzFMsTOFGoY+FRLi+OKJG2Axti7gmQ6Upmpp0phYnYQgzhREkDhWM4-i1rMMKhvYslKuKLb+EiLjdukQA */
       id: 'bigKahuna',
       type: 'parallel',
 
@@ -171,23 +167,14 @@ describe('permission requester and checker machine', () => {
             triggerPermissionRequest: {
               actions: [
                 log('triggering permission request'),
-                // () => {
-                //   console.log('triggering permission request');
-                // },
                 sendTo('someFooMachine', ({ context, event }) => {
                   assertEvent(event, 'triggerPermissionRequest');
-                  console.log({ event });
 
                   return {
                     type: 'triggerPermissionRequest',
                     permission: event.permission,
                   };
                 }),
-                // sendTo('someFooMachine', {
-                //   type: 'triggerPermissionRequest',
-                //   // intentionally incorrect because I need to pick this from event
-                //   permission: Permissions.bluetooth,
-                // }),
               ],
             },
 
@@ -423,7 +410,7 @@ const permissionCheckerAndRequesterMachine = setup({
     },
     events: {} as PermissionMachineEvents,
     input: {} as {
-      parent: ActorRef<Snapshot<unknown>, ParentEvent>;
+      parent?: ActorRef<Snapshot<unknown>, ParentEvent>;
     },
   },
 
