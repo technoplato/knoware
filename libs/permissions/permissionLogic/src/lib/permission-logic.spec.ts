@@ -16,24 +16,12 @@ import {
   waitFor,
   InspectionEvent,
 } from 'xstate';
+
 import {
   createWebSocketInspector,
   createSkyInspector,
 } from '@statelyai/inspect';
-// function simplifyEvent(ev: InspectionEvent) {
-//   return ev.type === '@xstate.actor'
-//     ? { type: ev.type, rootId: ev.rootId }
-//     : ev.type === '@xstate.event'
-//     ? { type: ev.type, rootId: ev.rootId, event: ev.event }
-//     : {
-//         type: ev.type,
-//         sessionId: ev.rootId,
-//         snapshot:
-//           'value' in ev.actorRef.getSnapshot()
-//             ? ev.actorRef.getSnapshot().value
-//             : ev.actorRef.getSnapshot(),
-//       };
-// }
+
 import { unimplementedPermissionMachineActions } from './permission.actions';
 import {
   InitialPermissionStatusMap,
@@ -46,22 +34,22 @@ import {
 } from './permission.types';
 
 describe('permission requester and checker machine', () => {
-  // it('should check permission when triggered', async () => {
-  //   const bluetoothPermissionActor = createActor(
-  //     permissionCheckerAndRequesterMachine,
-  //     { input: { parent: undefined } }
-  //   ).start();
-  //
-  //   bluetoothPermissionActor.send({ type: 'triggerPermissionCheck' });
-  //
-  //   await waitFor(bluetoothPermissionActor, (state) => state.value === 'idle');
-  //
-  //   expect(bluetoothPermissionActor.getSnapshot().value).toBe('idle');
-  //   expect(bluetoothPermissionActor.getSnapshot().context.statuses).toEqual({
-  //     [Permissions.bluetooth]: PermissionStatuses.denied,
-  //     [Permissions.microphone]: PermissionStatuses.denied,
-  //   });
-  // });
+  it('should check permission when triggered', async () => {
+    const bluetoothPermissionActor = createActor(
+      permissionCheckerAndRequesterMachine,
+      { input: { parent: undefined } }
+    ).start();
+
+    bluetoothPermissionActor.send({ type: 'triggerPermissionCheck' });
+
+    await waitFor(bluetoothPermissionActor, (state) => state.value === 'idle');
+
+    expect(bluetoothPermissionActor.getSnapshot().value).toBe('idle');
+    expect(bluetoothPermissionActor.getSnapshot().context.statuses).toEqual({
+      [Permissions.bluetooth]: PermissionStatuses.denied,
+      [Permissions.microphone]: PermissionStatuses.denied,
+    });
+  });
 
   type ApplicationLifecycleState =
     | 'applicationForegrounded'
@@ -182,13 +170,23 @@ describe('permission requester and checker machine', () => {
             },
             triggerPermissionRequest: {
               actions: [
-                // log('triggering permission request'),
+                log('triggering permission request'),
                 // () => {
                 //   console.log('triggering permission request');
                 // },
+                sendTo('someFooMachine', ({ context, event }) => {
+                  assertEvent(event, 'triggerPermissionRequest');
+                  console.log({ event });
+
+                  return {
+                    type: 'triggerPermissionRequest',
+                    permission: event.permission,
+                  };
+                }),
                 // sendTo('someFooMachine', {
                 //   type: 'triggerPermissionRequest',
-                //   permission: Permissions.microphone,
+                //   // intentionally incorrect because I need to pick this from event
+                //   permission: Permissions.bluetooth,
                 // }),
               ],
             },
@@ -223,7 +221,7 @@ describe('permission requester and checker machine', () => {
     expect(actorRef.getSnapshot().context).toStrictEqual({
       permissionsStatuses: {
         [Permissions.bluetooth]: PermissionStatuses.unasked,
-        [Permissions.microphone]: PermissionStatuses.unasked,
+        [permission]: PermissionStatuses.unasked,
       },
     });
 
@@ -242,173 +240,164 @@ describe('permission requester and checker machine', () => {
     expect(actorRef.getSnapshot().context).toStrictEqual({
       permissionsStatuses: {
         [Permissions.bluetooth]: PermissionStatuses.denied,
-        [Permissions.microphone]: PermissionStatuses.denied,
+        [permission]: PermissionStatuses.denied,
       },
     });
 
-    // expect(actorRef.getSnapshot().value).toStrictEqual({
-    //   applicationLifecycle: 'applicationIsInForeground',
-    //   permissions: {},
-    // });
+    actorRef.send({
+      type: 'triggerPermissionRequest',
+      permission: permission,
+    });
 
-    // expect(actorRef.getSnapshot().context).toStrictEqual({
-    //   permissionsStatuses: {},
-    // });
+    expect(
+      // @ts-expect-error
+      actorRef.getSnapshot().children.someFooMachine?.getSnapshot().value
+    ).toBe('requestingPermission');
 
-    // actorRef.send({
-    //   type: 'triggerPermissionRequest',
-    //   permission: permission,
-    // });
+    await waitFor(actorRef, (state) => {
+      // @ts-expect-error
+      return state.children.someFooMachine?.getSnapshot().value === 'idle';
+    });
 
-    // expect(
-    //   // @ts-expect-error
-    //   actorRef.getSnapshot().children.someFooMachine?.getSnapshot().value
-    // ).toBe('requestingPermission');
-
-    // await waitFor(actorRef, (state) => {
-    //   // @ts-expect-error
-    //   return state.children.someFooMachine?.getSnapshot().value === 'idle';
-    // });
-
-    // expect(actorRef.getSnapshot().context).toStrictEqual({
-    //   permissionsStatuses: {
-    //     // [Permissions.bluetooth]: PermissionStatuses.denied,
-    //     [permission]: PermissionStatuses.granted,
-    //   },
-    // });
+    expect(actorRef.getSnapshot().context).toStrictEqual({
+      permissionsStatuses: {
+        [Permissions.bluetooth]: PermissionStatuses.denied,
+        [permission]: PermissionStatuses.granted,
+      },
+    });
   });
 
-  // describe('requesting permissions', () => {
-  //   it('should request permission when triggered', async () => {
-  //     const permissionActor = createActor(
-  //       permissionCheckerAndRequesterMachine,
-  //       { input: { parent: undefined } }
-  //     ).start();
-  //     const permission: Permission = Permissions.bluetooth;
-  //
-  //     expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
-  //       PermissionStatuses.unasked
-  //     );
-  //
-  //     permissionActor.send({
-  //       type: 'triggerPermissionRequest',
-  //       permission,
-  //     });
-  //
-  //     await waitFor(permissionActor, (state) => state.value === 'idle');
-  //
-  //     expect(permissionActor.getSnapshot().value).toBe('idle');
-  //     expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
-  //       PermissionStatuses.granted
-  //     );
-  //   });
-  //
-  //   it('should report permission to parent after a request', async () => {
-  //     let result: any;
-  //     const spy = (
-  //       something: /* TODO: change type to whatever an event is in xstate*/ any
-  //     ) => {
-  //       result = something;
-  //     };
-  //
-  //     const parentMachine = setup({
-  //       types: {} as { events: ParentEvent },
-  //       actors: {
-  //         permissionCheckerAndRequesterMachine,
-  //       },
-  //     }).createMachine({
-  //       on: {
-  //         permissionRequested: {
-  //           actions: spy,
-  //         },
-  //         triggerPermissionRequest: {
-  //           actions: [
-  //             sendTo('someFooMachine', {
-  //               type: 'triggerPermissionRequest',
-  //               permission: Permissions.bluetooth,
-  //             }),
-  //           ],
-  //         },
-  //       },
-  //       invoke: {
-  //         id: 'someFooMachine',
-  //         src: 'permissionCheckerAndRequesterMachine',
-  //         input: ({ self }) => ({ parent: self }),
-  //       },
-  //     });
-  //
-  //     const actorRef = createActor(parentMachine).start();
-  //     actorRef.send({
-  //       type: 'triggerPermissionRequest',
-  //       permission: Permissions.bluetooth,
-  //     });
-  //
-  //     await waitFor(
-  //       actorRef,
-  //       (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
-  //     );
-  //
-  //     expect(result).not.toBeNull();
-  //     expect(result.event).toStrictEqual({
-  //       type: 'permissionRequested',
-  //       status: PermissionStatuses.granted,
-  //       permission: Permissions.bluetooth,
-  //     });
-  //   });
-  // });
+  describe('requesting permissions', () => {
+    it('should request permission when triggered', async () => {
+      const permissionActor = createActor(
+        permissionCheckerAndRequesterMachine,
+        { input: { parent: undefined } }
+      ).start();
+      const permission: Permission = Permissions.bluetooth;
 
-  // describe('Permission Monitoring Machine', () => {
-  //   it('should report permission to parent after a check', async () => {
-  //     let result: any;
-  //     const spy = (
-  //       something: /* TODO: change type to whatever an event is in xstate*/ any
-  //     ) => {
-  //       result = something;
-  //     };
-  //
-  //     const parentMachine = setup({
-  //       types: {} as { events: ParentEvent },
-  //       actors: {
-  //         permissionCheckerAndRequesterMachine,
-  //       },
-  //     }).createMachine({
-  //       on: {
-  //         allPermissionsChecked: {
-  //           actions: spy,
-  //         },
-  //         triggerPermissionCheck: {
-  //           actions: [
-  //             sendTo('someFooMachine', {
-  //               type: 'triggerPermissionCheck',
-  //             }),
-  //           ],
-  //         },
-  //       },
-  //       invoke: {
-  //         id: 'someFooMachine',
-  //         src: 'permissionCheckerAndRequesterMachine',
-  //         input: ({ self }) => ({ parent: self }),
-  //       },
-  //     });
-  //
-  //     const actorRef = createActor(parentMachine).start();
-  //     actorRef.send({ type: 'triggerPermissionCheck' });
-  //
-  //     await waitFor(
-  //       actorRef,
-  //       (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
-  //     );
-  //
-  //     expect(result).not.toBeNull();
-  //     expect(result.event).toStrictEqual({
-  //       type: 'allPermissionsChecked',
-  //       statuses: {
-  //         [Permissions.bluetooth]: PermissionStatuses.denied,
-  //         [Permissions.microphone]: PermissionStatuses.denied,
-  //       },
-  //     });
-  //   });
-  // });
+      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
+        PermissionStatuses.unasked
+      );
+
+      permissionActor.send({
+        type: 'triggerPermissionRequest',
+        permission,
+      });
+
+      await waitFor(permissionActor, (state) => state.value === 'idle');
+
+      expect(permissionActor.getSnapshot().value).toBe('idle');
+      expect(permissionActor.getSnapshot().context.statuses[permission]).toBe(
+        PermissionStatuses.granted
+      );
+    });
+
+    it('should report permission to parent after a request', async () => {
+      let result: any;
+      const spy = (
+        something: /* TODO: change type to whatever an event is in xstate*/ any
+      ) => {
+        result = something;
+      };
+
+      const parentMachine = setup({
+        types: {} as { events: ParentEvent },
+        actors: {
+          permissionCheckerAndRequesterMachine,
+        },
+      }).createMachine({
+        on: {
+          permissionRequested: {
+            actions: spy,
+          },
+          triggerPermissionRequest: {
+            actions: [
+              sendTo('someFooMachine', {
+                type: 'triggerPermissionRequest',
+                permission: Permissions.bluetooth,
+              }),
+            ],
+          },
+        },
+        invoke: {
+          id: 'someFooMachine',
+          src: 'permissionCheckerAndRequesterMachine',
+          input: ({ self }) => ({ parent: self }),
+        },
+      });
+
+      const actorRef = createActor(parentMachine).start();
+      actorRef.send({
+        type: 'triggerPermissionRequest',
+        permission: Permissions.bluetooth,
+      });
+
+      await waitFor(
+        actorRef,
+        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.event).toStrictEqual({
+        type: 'permissionRequested',
+        status: PermissionStatuses.granted,
+        permission: Permissions.bluetooth,
+      });
+    });
+  });
+
+  describe('Permission Monitoring Machine', () => {
+    it('should report permission to parent after a check', async () => {
+      let result: any;
+      const spy = (
+        something: /* TODO: change type to whatever an event is in xstate*/ any
+      ) => {
+        result = something;
+      };
+
+      const parentMachine = setup({
+        types: {} as { events: ParentEvent },
+        actors: {
+          permissionCheckerAndRequesterMachine,
+        },
+      }).createMachine({
+        on: {
+          allPermissionsChecked: {
+            actions: spy,
+          },
+          triggerPermissionCheck: {
+            actions: [
+              sendTo('someFooMachine', {
+                type: 'triggerPermissionCheck',
+              }),
+            ],
+          },
+        },
+        invoke: {
+          id: 'someFooMachine',
+          src: 'permissionCheckerAndRequesterMachine',
+          input: ({ self }) => ({ parent: self }),
+        },
+      });
+
+      const actorRef = createActor(parentMachine).start();
+      actorRef.send({ type: 'triggerPermissionCheck' });
+
+      await waitFor(
+        actorRef,
+        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
+      );
+
+      expect(result).not.toBeNull();
+      expect(result.event).toStrictEqual({
+        type: 'allPermissionsChecked',
+        statuses: {
+          [Permissions.bluetooth]: PermissionStatuses.denied,
+          [Permissions.microphone]: PermissionStatuses.denied,
+        },
+      });
+    });
+  });
 });
 
 export type ParentEvent =
