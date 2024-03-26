@@ -25,66 +25,10 @@ import {
   PermissionStatusMapType,
   PermissionStatuses,
   Permissions,
+  PermissionMonitoringMachineEvents,
 } from './permission.types';
 import { InitialPermissionStatusMap } from './permission.fixtures';
-
-export type PermissionMonitoringMachineEvents =
-  | {
-      type: 'allPermissionsChecked';
-      statuses: PermissionStatusMapType;
-    }
-  | { type: 'triggerPermissionRequest'; permission: Permission }
-  | {
-      type: 'permissionRequestCompleted';
-      status: PermissionStatus;
-      permission: Permission;
-    }
-  | { type: 'triggerPermissionCheck' }
-  | { type: 'applicationForegrounded' }
-  | { type: 'applicationBackgrounded' };
-
-type ApplicationLifecycleState =
-  | 'applicationForegrounded'
-  | 'applicationBackgrounded';
-
-type ApplicationStateChangeHandler = (event: ApplicationLifecycleState) => void;
-const stubSubscribeToApplicationStateChanges = (
-  handleApplicationStateChange: ApplicationStateChangeHandler
-) => {
-  console.log('subscribed to fake handler');
-  handleApplicationStateChange('applicationForegrounded');
-
-  return () => {
-    console.log('unsubscribed from fake handler');
-  };
-};
-
-const stubApplicationLifecycleReportingActorLogic =
-  // TODO figure out how to type what events this sends back
-  fromCallback(({ sendBack }) => {
-    /**
-     * The real implementation of this actor should setup a subscription
-     * to the application lifecycle events for when the application
-     * is backgrounded or foregrounded and then report those messages via
-     * sendBack
-     *
-     * Implementations should also return a function that will unsubscribe
-     * any listeners
-     */
-    const unsubscribeApplicationStateListeners =
-      stubSubscribeToApplicationStateChanges((event) => {
-        switch (event) {
-          case 'applicationForegrounded':
-            sendBack({ type: 'applicationForegrounded' });
-            break;
-          case 'applicationBackgrounded':
-            sendBack({ type: 'applicationBackgrounded' });
-            break;
-        }
-      });
-
-    return unsubscribeApplicationStateListeners;
-  });
+import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
 
 describe('Permission Requester and Checker Machine', () => {
   describe('Checking Permissions', () => {

@@ -13,6 +13,21 @@ export const PermissionStatuses = {
 export type PermissionStatus =
   (typeof PermissionStatuses)[keyof typeof PermissionStatuses];
 
+export type PermissionMonitoringMachineEvents =
+  | {
+      type: 'allPermissionsChecked';
+      statuses: PermissionStatusMapType;
+    }
+  | { type: 'triggerPermissionRequest'; permission: Permission }
+  | {
+      type: 'permissionRequestCompleted';
+      status: PermissionStatus;
+      permission: Permission;
+    }
+  | { type: 'triggerPermissionCheck' }
+  | { type: 'applicationForegrounded' }
+  | { type: 'applicationBackgrounded' };
+
 export interface PermissionMachineActions {
   checkAllPermissions: () => Promise<PermissionStatusMapType>;
   requestBluetoothPermission: () => Promise<PermissionStatus>;
@@ -29,23 +44,23 @@ export const PermissionCheckingStates = {
 export type PermissionMonitoringMachineContext = {
   permissionStatuses: PermissionStatusMapType;
 };
-export type PermissionMonitoringMachineEvents =
-  | { type: 'checkPermissions' }
-  | {
-      type: 'permissionChecked';
-      permission: Permission;
-      status: PermissionStatus;
-    }
-  | {
-      type: 'triggerPermissionCheck';
-      permission: Permission;
-    }
-  | {
-      type: 'triggerPermissionRequest';
-      permission: Permission;
-    }
-  | { type: 'applicationForegrounded' }
-  | { type: 'applicationBackgrounded' };
+// export type PermissionMonitoringMachineEvents =
+//   | { type: 'checkPermissions' }
+//   | {
+//       type: 'permissionChecked';
+//       permission: Permission;
+//       status: PermissionStatus;
+//     }
+//   | {
+//       type: 'triggerPermissionCheck';
+//       permission: Permission;
+//     }
+//   | {
+//       type: 'triggerPermissionRequest';
+//       permission: Permission;
+//     }
+//   | { type: 'applicationForegrounded' }
+//   | { type: 'applicationBackgrounded' };
 
 export type PermissionMachineEvents =
   | { type: 'triggerPermissionCheck' }
