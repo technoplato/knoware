@@ -14,6 +14,7 @@ export type PermissionStatus =
   (typeof PermissionStatuses)[keyof typeof PermissionStatuses];
 
 export type PermissionMonitoringMachineEvents =
+  | { type: 'subscribeToPermissionStatuses'; permissions: Permission[] }
   | {
       type: 'allPermissionsChecked';
       statuses: PermissionStatusMapType;

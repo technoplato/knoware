@@ -8,3 +8,14 @@ Machine best practices
     ├── <domain>.types.ts
     ├── <domain>.actions.ts
     ├── <domain>.actors.ts
+
+3) Should we have every actor declared in a system???
+  - PROS
+    - system.get works
+    - everything is explicit
+    - you can simulate everything in that actor system headlessly
+  - CONS
+    - Complexity...
+
+4) Should we use emit?
+I don't think so, because it causes implicit dependencies at the cost of convenience

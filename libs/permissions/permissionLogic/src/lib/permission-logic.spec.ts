@@ -15,6 +15,8 @@ import {
   sendTo,
   setup,
   waitFor,
+  createMachine,
+  AnyEventObject,
 } from 'xstate';
 
 import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
@@ -561,8 +563,11 @@ const permissionMonitoringMachine = setup({
     permissionSubscribers: EmptyPermissionSubscriberMap,
   },
   on: {
-    // subscribeToPermissionStatuses: {},
+    subscribeToPermissionStatuses: {
+      actions: [log('received permission subscription'), log('or did we')],
+    },
   },
+  // entry: raise({ type: 'subscribeToPermissionStatuses', permissions: [] }),
   states: {
     applicationLifecycle: {
       on: {
@@ -631,7 +636,44 @@ describe('Permission Monitoring Machine', () => {
       );
     });
     describe('Single Subscriber', () => {
-      it('should allow subscriptions from a subscriber to any permissions', () => {});
+      const dummyFeatureMachine = setup({
+        actions: {
+          sendSubscriptionRequestForStatusUpdates:
+            //TODO this is not sending figure out whhy
+            sendTo(
+              ({ system }) => {
+                const actorRef: AnyActorRef = system.get('bigKahuna');
+                console.log({ actorRef });
+                return actorRef;
+              },
+              {
+                type: 'subscribeToPermissionStatuses',
+                // permissions: [Permissions.bluetooth],
+              }
+            ),
+          // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
+        },
+      }).createMachine({
+        id: 'dummyFeatureId',
+        entry: [
+          'sendSubscriptionRequestForStatusUpdates',
+          log('subscribe to status updates'),
+        ],
+      });
+      it('should allow subscriptions from a subscriber to any permissions', () => {
+        const actor = createActor(permissionMonitoringMachine, {
+          parent: undefined,
+          systemId: 'bigKahuna',
+        }).start();
+
+        const dummyFeatureActor = createActor(dummyFeatureMachine).start();
+
+        const state = actor.getSnapshot();
+        expect(
+          state.context.permissionSubscribers?.[Permissions.bluetooth]
+            ?.length ?? 0
+        ).toEqual(1);
+      });
     });
   });
   it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
