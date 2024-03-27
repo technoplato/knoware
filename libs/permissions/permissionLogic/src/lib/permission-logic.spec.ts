@@ -2,34 +2,46 @@
 
 import {
   ActorRef,
+  AnyActorRef,
   InspectionEvent,
   Snapshot,
   assertEvent,
   assign,
   createActor,
   enqueueActions,
-  fromCallback,
   fromPromise,
   log,
   raise,
   sendTo,
   setup,
   waitFor,
-  AnyActorRef,
 } from 'xstate';
 
+import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
 import { unimplementedPermissionMachineActions } from './permission.actions';
+import { InitialPermissionStatusMap } from './permission.fixtures';
 import {
   Permission,
   PermissionMachineEvents,
+  PermissionMonitoringMachineEvents,
   PermissionStatus,
   PermissionStatusMapType,
   PermissionStatuses,
   Permissions,
-  PermissionMonitoringMachineEvents,
 } from './permission.types';
-import { InitialPermissionStatusMap } from './permission.fixtures';
-import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
+
+const createPermissionHandlerActor = {
+  permissions: [],
+  permissionHandlerMap: {
+    bluetooth: {
+      granted: {
+        action: '',
+        target: '',
+      },
+      rvoked: {},
+    },
+  },
+};
 
 const countingMachineThatNeedsPermissionAt3 = setup({
   types: {
@@ -82,15 +94,21 @@ const countingMachineThatNeedsPermissionAt3 = setup({
        * - we need to handle
        * permission granted,
        * permission denied,
-       * permission revoked
+       * permission revoked (optional) if not you have a bug [EXCLUDE for iteration 1]
        *
        * 🤔 Thoughts:
        * This could just be an actor we invoke that communicates
        * up to the permission monitoring machine...
-       * input: [permission]
+       *  input: [permission]
        *
        *
        */
+      // invoke: {
+      //   src: 'permissionReportingMAchine'
+      //   input: {
+      //     permissions: [Permissions.bluetooth]
+      // }
+
       initial: 'idle',
       states: {
         idle: {},
@@ -100,11 +118,193 @@ const countingMachineThatNeedsPermissionAt3 = setup({
   },
 });
 
+const permissionCheckerAndRequesterMachine = setup({
+  types: {
+    context: {} as {
+      parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
+      statuses: PermissionStatusMapType;
+    },
+    events: {} as PermissionMachineEvents,
+    input: {} as {
+      parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
+    },
+  },
+
+  actions: {
+    checkedSendParent: enqueueActions(
+      ({ context, enqueue }, event: PermissionMonitoringMachineEvents) => {
+        if (!context.parent) {
+          console.log(
+            'WARN: an attempt to send an event to a non-existent parent'
+          );
+          return;
+        }
+
+        enqueue.sendTo(context.parent, event);
+      }
+    ),
+
+    savePermissionRequestOutput: assign({
+      statuses: ({ context, event }) => {
+        return {
+          ...context.statuses,
+          // @ts-expect-error TODO how do I type these actions?
+          [event.output.permission]: event.output.status,
+        };
+      },
+    }),
+
+    savePermissionCheckResult: assign({
+      // @ts-expect-error TODO how do I type these actions?
+      statuses: ({ event }) => event.output,
+    }),
+
+    /**
+     * I tried putting reportPermissionRequestResult as an action, but it requied
+     * use of checkedSendParent and ran into this error when attempting to use that
+     *
+     * in onDone, but it didn't work
+     *
+     * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
+     */
+    // reportPermissionRequestResult: raise({
+    //   type: 'checkedSendParent',
+    //   params({ event }) {
+    //     console.log(JSON.stringify(event, null, 2));
+
+    //     return {
+    //       type: 'permissionRequestCompleted',
+    //       status: event.output.status,
+    //       permission: event.output.permission,
+    //     };
+    //   },
+    // }),
+  },
+
+  actors: {
+    checkAllPermissions: fromPromise(async () => {
+      const result =
+        // TODO how can i make this implementation more injectable and still ergnomic
+        await unimplementedPermissionMachineActions.checkAllPermissions();
+
+      return result;
+    }),
+
+    requestPermission: fromPromise(
+      async ({
+        input: { permission },
+      }: {
+        input: { permission: Permission };
+      }): Promise<{
+        permission: Permission;
+        status: PermissionStatus;
+      }> => {
+        let status: undefined | PermissionStatus = undefined;
+
+        switch (permission) {
+          case Permissions.bluetooth:
+            status =
+              // TODO how can i make this implementation more injectable and still ergnomic
+              await unimplementedPermissionMachineActions.requestBluetoothPermission();
+            break;
+
+          case Permissions.microphone:
+            status =
+              // TODO how can i make this implementation more injectable and still ergnomic
+              await unimplementedPermissionMachineActions.requestMicrophonePermission();
+            break;
+        }
+
+        return { status, permission };
+      }
+    ),
+  },
+}).createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOlwgBswBiAFwCdcoZ6AFMe1XWWXAe3wBhbGEwBrANoAGALqJQABz69a-fPJAAPRAFoArAHYAjCUNSDANgN6AzBYAsB+3oA0IAJ66jtkvaM2pAA5gwKMLfzsAX0i3NCw8QlJyKjpGZg52Tm5eAQAlMABHAFc4Wmk5JBAlFTUNbQR9A0CSACYDG0CAThbbBydXD0QbTpIwqRsmzoNu8dto2IwcAmISekKS2FV8KEyuHjVqCAEwMnwANz4xE7ilxNX10oIdjj2c-AQCC8x0VQFy8o01Vwv3UlXqOmaRns9kCUiMRikLUCAU68LcngQ8IsJCClk6egsyKRensnXmIBuCRWOFEYieu2yalgh2OpwuVxIlOWpBp4npL0ZAlgH3OfG+IP+skBymBtTBXhsJE6wT0tksTkRnU66N0SMV3QMswsxocUgs0RiIHwfAgcA0XMS0pqAjqugsLWxbQ63V6jmcOoatmaiPsFiCQW8bXNlodK2SYCdspd8sDcJINj08IMPUcE0CAwx+ns6ZaRimnURZo9NnJsdIa2Kj22DP2ycUMpBroapZIxqk9g9JsCFhsRha9gDARaJGRpMz4T8nXstcWVJ5Ij5zYFrfw8EqQM7KZ0bVM-aM0xso-sGdLAZ0zikpnHYdhoT0UYtkSAA */
+  context: ({ input }) => ({
+    parent: input.parent,
+    statuses: InitialPermissionStatusMap,
+  }),
+
+  initial: 'idle',
+
+  states: {
+    idle: {
+      on: {
+        triggerPermissionCheck: {
+          target: 'checkingPermissions',
+          actions: [log('child triggerPermissionCheck')],
+        },
+        triggerPermissionRequest: { target: 'requestingPermission' },
+      },
+    },
+
+    requestingPermission: {
+      invoke: {
+        src: 'requestPermission',
+        // @ts-expect-error TODO how do I get this type?
+        input: ({ context, event }) => ({ permission: event.permission }),
+        onDone: {
+          target: 'idle',
+          actions: [
+            'savePermissionRequestOutput',
+            {
+              /**
+               * I tried putting this action in the actions in setup as reportPermissionRequestResult
+               * as an action, but it requied
+               * use of checkedSendParent and ran into this error when attempting to use that
+               *
+               * in onDone, but it didn't work
+               *
+               * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
+               */
+              type: 'checkedSendParent',
+              params({ event }) {
+                return {
+                  type: 'permissionRequestCompleted',
+                  status: event.output.status,
+                  permission: event.output.permission,
+                };
+              },
+            },
+          ],
+        },
+      },
+    },
+
+    checkingPermissions: {
+      invoke: {
+        src: 'checkAllPermissions',
+        onError: {},
+        onDone: {
+          target: 'idle',
+          actions: [
+            log('child on done checkingPermissions'),
+            'savePermissionCheckResult',
+
+            {
+              type: 'checkedSendParent',
+              params({ event }) {
+                return {
+                  type: 'allPermissionsChecked',
+                  statuses: event.output,
+                };
+              },
+            },
+          ],
+        },
+      },
+    },
+  },
+});
+
 describe('Counting Machine That Needs Permission At 3', () => {
   it('should not increment count beyond 3, but rather ask permission', async () => {
-    const countingActor = createActor(
-      countingMachineThatNeedsPermissionAt3
-    ).start();
+    const countingActor = createActor(countingMachineThatNeedsPermissionAt3, {
+      // inspect: createSkyInspector({
+      //   onerror: (err) => console.log(err),
+      // }).inspect,
+    }).start();
     countingActor.send({ type: 'count.inc' });
     countingActor.send({ type: 'count.inc' });
     countingActor.send({ type: 'count.inc' });
@@ -311,129 +511,130 @@ export type PermissionsMonitoringMachineContext = {
   permissionSubscribers: PermissionSubscriberMap;
 };
 
+const permissionMonitoringMachine = setup({
+  types: {} as {
+    events: PermissionMonitoringMachineEvents;
+    context: PermissionsMonitoringMachineContext;
+  },
+  actors: {
+    applicationLifecycleReportingMachine:
+      stubApplicationLifecycleReportingActorLogic,
+    permissionCheckerAndRequesterMachine,
+  },
+
+  actions: {
+    assignPermissionCheckResultsToContext: assign({
+      permissionsStatuses: ({ event }) => {
+        assertEvent(event, 'allPermissionsChecked');
+        return event.statuses;
+      },
+    }),
+    assignPermissionRequestResultToContext: assign({
+      permissionsStatuses: ({ event, context }) => {
+        assertEvent(event, 'permissionRequestCompleted');
+        return {
+          ...context.permissionsStatuses,
+          [event.permission]: event.status,
+        };
+      },
+    }),
+    raisePermissionCheck: raise({ type: 'triggerPermissionCheck' }),
+    sendPermissionCheck: sendTo('someFooMachine', {
+      type: 'triggerPermissionCheck',
+    }),
+    sendPermissionRequest: sendTo('someFooMachine', ({ context, event }) => {
+      assertEvent(event, 'triggerPermissionRequest');
+
+      return {
+        type: 'triggerPermissionRequest',
+        permission: event.permission,
+      };
+    }),
+  },
+}).createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O13fJhXKhgeiArq6Ple0CDGzJVwq2sI6KeDzrcMQjz1zzYkVOGJKvsZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2DzLtwIpdwgPJAOJsmTqkFMTFdhcXj8MAz-kEcFDeGiqFRNdnzf+BUhlXYhaw8H8JR2WJXFRJNDSnUgqlvCR7zKJ8ENEIoJAASVgLCpFkeRFGUF8qzMSxbGVb9fw3eEAJ3CwPC-KIlQcJEbFCeN4lgnJ4JvTCWBQx8BHQ6pijw+omhaYiPUrOdq0sVwnGXH8NWJBwHGJCVXEA4VlnUNwnC8RcYy3C8jh4qkszNekSLksiEH2GF-E8fZ3GxSNAJlYhWysCDwkhXZ9yHNIgA */
+  id: 'bigKahuna',
+  type: 'parallel',
+
+  context: {
+    permissionsStatuses: InitialPermissionStatusMap,
+    permissionSubscribers: EmptyPermissionSubscriberMap,
+  },
+  on: {
+    // subscribeToPermissionStatuses: {},
+  },
+  states: {
+    applicationLifecycle: {
+      on: {
+        applicationForegrounded: {
+          target: '.applicationIsInForeground',
+        },
+
+        applicationBackgrounded: {
+          target: '.applicationInBackground',
+        },
+      },
+      initial: 'applicationIsInForeground',
+      invoke: {
+        src: 'applicationLifecycleReportingMachine',
+      },
+
+      states: {
+        applicationIsInForeground: {
+          entry: 'raisePermissionCheck',
+        },
+        applicationInBackground: {},
+      },
+    },
+
+    permissions: {
+      on: {
+        triggerPermissionCheck: {
+          actions: [log('permission trigger check'), 'sendPermissionCheck'],
+        },
+
+        allPermissionsChecked: {
+          actions: [
+            'assignPermissionCheckResultsToContext',
+            // TODO 'broadcastPermissionsToListeners',
+          ],
+        },
+
+        triggerPermissionRequest: {
+          actions: [
+            log('triggering permission request'),
+            'sendPermissionRequest',
+          ],
+        },
+        permissionRequestCompleted: {
+          actions: 'assignPermissionRequestResultToContext',
+          // TODO 'broadcastPermissionsToListeners',
+        },
+      },
+      invoke: {
+        id: 'someFooMachine',
+        src: 'permissionCheckerAndRequesterMachine',
+        input: ({ self }) => ({ parent: self }),
+      },
+    },
+  },
+});
 describe('Permission Monitoring Machine', () => {
   describe('Subscriptions', () => {
+    it('should initialize with no subscriptions', () => {
+      const actor = createActor(permissionMonitoringMachine, {
+        parent: undefined,
+      }).start();
+      const state = actor.getSnapshot();
+      expect(state.context.permissionSubscribers).toEqual(
+        EmptyPermissionSubscriberMap
+      );
+    });
     describe('Single Subscriber', () => {
-      it('should allow subscriptions from a subscriber to any permissions', () => {
-        // TODO
-        /*
-$$$$$$$$\  $$$$$$\  $$$$$$$\   $$$$$$\
-\__$$  __|$$  __$$\ $$  __$$\ $$  __$$\
-   $$ |   $$ /  $$ |$$ |  $$ |$$ /  $$ |
-   $$ |   $$ |  $$ |$$ |  $$ |$$ |  $$ |
-   $$ |   $$ |  $$ |$$ |  $$ |$$ |  $$ |
-   $$ |   $$ |  $$ |$$ |  $$ |$$ |  $$ |
-   $$ |    $$$$$$  |$$$$$$$  | $$$$$$  |
-   \__|    \______/ \_______/  \______/
-         */
-      });
+      it('should allow subscriptions from a subscriber to any permissions', () => {});
     });
   });
   it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
-    const permissionMonitoringMachine = setup({
-      types: {} as {
-        events: PermissionMonitoringMachineEvents;
-        context: PermissionsMonitoringMachineContext;
-      },
-      actors: {
-        applicationLifecycleReportingMachine:
-          stubApplicationLifecycleReportingActorLogic,
-        permissionCheckerAndRequesterMachine,
-      },
-
-      actions: {
-        assignPermissionCheckResultsToContext: assign({
-          permissionsStatuses: ({ event }) => {
-            assertEvent(event, 'allPermissionsChecked');
-            return event.statuses;
-          },
-        }),
-        assignPermissionRequestResultToContext: assign({
-          permissionsStatuses: ({ event, context }) => {
-            assertEvent(event, 'permissionRequestCompleted');
-            return {
-              ...context.permissionsStatuses,
-              [event.permission]: event.status,
-            };
-          },
-        }),
-        raisePermissionCheck: raise({ type: 'triggerPermissionCheck' }),
-        sendPermissionCheck: sendTo('someFooMachine', {
-          type: 'triggerPermissionCheck',
-        }),
-        sendPermissionRequest: sendTo(
-          'someFooMachine',
-          ({ context, event }) => {
-            assertEvent(event, 'triggerPermissionRequest');
-
-            return {
-              type: 'triggerPermissionRequest',
-              permission: event.permission,
-            };
-          }
-        ),
-      },
-    }).createMachine({
-      /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O13fJhXKhgeiArq6Ple0CDGzJVwq2sI6KeDzrcMQjz1zzYkVOGJKvsZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2DzLtwIpdwgPJAOJsmTqkFMTFdhcXj8MAz-kEcFDeGiqFRNdnzf+BUhlXYhaw8H8JR2WJXFRJNDSnUgqlvCR7zKJ8ENEIoJAASVgLCpFkeRFGUF8qzMSxbGVb9fw3eEAJ3CwPC-KIlQcJEbFCeN4lgnJ4JvTCWBQx8BHQ6pijw+omhaYiPUrOdq0sVwnGXH8NWJBwHGJCVXEA4VlnUNwnC8RcYy3C8jh4qkszNekSLksiEH2GF-E8fZ3GxSNAJlYhWysCDwkhXZ9yHNIgA */
-      id: 'bigKahuna',
-      type: 'parallel',
-
-      context: {
-        permissionsStatuses: InitialPermissionStatusMap,
-        permissionSubscribers: EmptyPermissionSubscriberMap,
-      },
-      states: {
-        applicationLifecycle: {
-          on: {
-            applicationForegrounded: {
-              target: '.applicationIsInForeground',
-            },
-
-            applicationBackgrounded: {
-              target: '.applicationInBackground',
-            },
-          },
-          initial: 'applicationIsInForeground',
-          invoke: {
-            src: 'applicationLifecycleReportingMachine',
-          },
-
-          states: {
-            applicationIsInForeground: {
-              entry: 'raisePermissionCheck',
-            },
-            applicationInBackground: {},
-          },
-        },
-
-        permissions: {
-          on: {
-            allPermissionsChecked: {
-              actions: 'assignPermissionCheckResultsToContext',
-            },
-            triggerPermissionCheck: {
-              actions: [log('permission trigger check'), 'sendPermissionCheck'],
-            },
-            triggerPermissionRequest: {
-              actions: [
-                log('triggering permission request'),
-                'sendPermissionRequest',
-              ],
-            },
-
-            permissionRequestCompleted: {
-              actions: 'assignPermissionRequestResultToContext',
-            },
-          },
-          invoke: {
-            id: 'someFooMachine',
-            src: 'permissionCheckerAndRequesterMachine',
-            input: ({ self }) => ({ parent: self }),
-          },
-        },
-      },
-    });
-
     const permission: Permission = Permissions.microphone;
 
     const actorRef = createActor(permissionMonitoringMachine, {
@@ -495,183 +696,4 @@ $$$$$$$$\  $$$$$$\  $$$$$$$\   $$$$$$\
   describe('Blocked Permission', () => {
     it('should immediately report back to parent if permission is already granted', async () => {});
   });
-});
-
-const permissionCheckerAndRequesterMachine = setup({
-  types: {
-    context: {} as {
-      parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
-      statuses: PermissionStatusMapType;
-    },
-    events: {} as PermissionMachineEvents,
-    input: {} as {
-      parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
-    },
-  },
-
-  actions: {
-    checkedSendParent: enqueueActions(
-      ({ context, enqueue }, event: PermissionMonitoringMachineEvents) => {
-        if (!context.parent) {
-          console.log(
-            'WARN: an attempt to send an event to a non-existent parent'
-          );
-          return;
-        }
-
-        enqueue.sendTo(context.parent, event);
-      }
-    ),
-
-    savePermissionRequestOutput: assign({
-      statuses: ({ context, event }) => {
-        return {
-          ...context.statuses,
-          // @ts-expect-error TODO how do I type these actions?
-          [event.output.permission]: event.output.status,
-        };
-      },
-    }),
-
-    savePermissionCheckResult: assign({
-      // @ts-expect-error TODO how do I type these actions?
-      statuses: ({ event }) => event.output,
-    }),
-
-    /**
-     * I tried putting reportPermissionRequestResult as an action, but it requied
-     * use of checkedSendParent and ran into this error when attempting to use that
-     *
-     * in onDone, but it didn't work
-     *
-     * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
-     */
-    // reportPermissionRequestResult: raise({
-    //   type: 'checkedSendParent',
-    //   params({ event }) {
-    //     console.log(JSON.stringify(event, null, 2));
-
-    //     return {
-    //       type: 'permissionRequestCompleted',
-    //       status: event.output.status,
-    //       permission: event.output.permission,
-    //     };
-    //   },
-    // }),
-  },
-
-  actors: {
-    checkAllPermissions: fromPromise(async () => {
-      const result =
-        // TODO how can i make this implementation more injectable and still ergnomic
-        await unimplementedPermissionMachineActions.checkAllPermissions();
-
-      return result;
-    }),
-
-    requestPermission: fromPromise(
-      async ({
-        input: { permission },
-      }: {
-        input: { permission: Permission };
-      }): Promise<{
-        permission: Permission;
-        status: PermissionStatus;
-      }> => {
-        let status: undefined | PermissionStatus = undefined;
-
-        switch (permission) {
-          case Permissions.bluetooth:
-            status =
-              // TODO how can i make this implementation more injectable and still ergnomic
-              await unimplementedPermissionMachineActions.requestBluetoothPermission();
-            break;
-
-          case Permissions.microphone:
-            status =
-              // TODO how can i make this implementation more injectable and still ergnomic
-              await unimplementedPermissionMachineActions.requestMicrophonePermission();
-            break;
-        }
-
-        return { status, permission };
-      }
-    ),
-  },
-}).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOlwgBswBiAFwCdcoZ6AFMe1XWWXAe3wBhbGEwBrANoAGALqJQABz69a-fPJAAPRAFoArAHYAjCUNSDANgN6AzBYAsB+3oA0IAJ66jtkvaM2pAA5gwKMLfzsAX0i3NCw8QlJyKjpGZg52Tm5eAQAlMABHAFc4Wmk5JBAlFTUNbQR9A0CSACYDG0CAThbbBydXD0QbTpIwqRsmzoNu8dto2IwcAmISekKS2FV8KEyuHjVqCAEwMnwANz4xE7ilxNX10oIdjj2c-AQCC8x0VQFy8o01Vwv3UlXqOmaRns9kCUiMRikLUCAU68LcngQ8IsJCClk6egsyKRensnXmIBuCRWOFEYieu2yalgh2OpwuVxIlOWpBp4npL0ZAlgH3OfG+IP+skBymBtTBXhsJE6wT0tksTkRnU66N0SMV3QMswsxocUgs0RiIHwfAgcA0XMS0pqAjqugsLWxbQ63V6jmcOoatmaiPsFiCQW8bXNlodK2SYCdspd8sDcJINj08IMPUcE0CAwx+ns6ZaRimnURZo9NnJsdIa2Kj22DP2ycUMpBroapZIxqk9g9JsCFhsRha9gDARaJGRpMz4T8nXstcWVJ5Ij5zYFrfw8EqQM7KZ0bVM-aM0xso-sGdLAZ0zikpnHYdhoT0UYtkSAA */
-  context: ({ input }) => ({
-    parent: input.parent,
-    statuses: InitialPermissionStatusMap,
-  }),
-
-  initial: 'idle',
-
-  states: {
-    idle: {
-      on: {
-        triggerPermissionCheck: {
-          target: 'checkingPermissions',
-          actions: [log('child triggerPermissionCheck')],
-        },
-        triggerPermissionRequest: { target: 'requestingPermission' },
-      },
-    },
-
-    requestingPermission: {
-      invoke: {
-        src: 'requestPermission',
-        // @ts-expect-error TODO how do I get this type?
-        input: ({ context, event }) => ({ permission: event.permission }),
-        onDone: {
-          target: 'idle',
-          actions: [
-            'savePermissionRequestOutput',
-            {
-              /**
-               * I tried putting this action in the actions in setup as reportPermissionRequestResult
-               * as an action, but it requied
-               * use of checkedSendParent and ran into this error when attempting to use that
-               *
-               * in onDone, but it didn't work
-               *
-               * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
-               */
-              type: 'checkedSendParent',
-              params({ event }) {
-                return {
-                  type: 'permissionRequestCompleted',
-                  status: event.output.status,
-                  permission: event.output.permission,
-                };
-              },
-            },
-          ],
-        },
-      },
-    },
-
-    checkingPermissions: {
-      invoke: {
-        src: 'checkAllPermissions',
-        onDone: {
-          target: 'idle',
-          actions: [
-            log('child on done checkingPermissions'),
-            'savePermissionCheckResult',
-
-            {
-              type: 'checkedSendParent',
-              params({ event }) {
-                return {
-                  type: 'allPermissionsChecked',
-                  statuses: event.output,
-                };
-              },
-            },
-          ],
-        },
-      },
-    },
-  },
 });
