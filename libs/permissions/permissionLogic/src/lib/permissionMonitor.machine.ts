@@ -57,6 +57,7 @@ export const permissionMonitoringMachine = setup({
           context.permissionSubscribers[permission].forEach((actorRef) => {
             enqueue.sendTo(actorRef, {
               type: 'permissionStatusChanged',
+              // @ts-expect-error TODO type these
               permission,
               status: context.permissionsStatuses[permission],
             });
