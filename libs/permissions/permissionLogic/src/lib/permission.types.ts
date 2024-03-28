@@ -1,3 +1,5 @@
+import { AnyActorRef } from 'xstate';
+
 export const Permissions = {
   bluetooth: 'bluetooth',
   microphone: 'microphone',
@@ -14,7 +16,11 @@ export type PermissionStatus =
   (typeof PermissionStatuses)[keyof typeof PermissionStatuses];
 
 export type PermissionMonitoringMachineEvents =
-  | { type: 'subscribeToPermissionStatuses'; permissions: Permission[] }
+  | {
+      type: 'subscribeToPermissionStatuses';
+      permissions: Permission[];
+      self: AnyActorRef;
+    }
   | {
       type: 'allPermissionsChecked';
       statuses: PermissionStatusMapType;
@@ -45,23 +51,6 @@ export const PermissionCheckingStates = {
 export type PermissionMonitoringMachineContext = {
   permissionStatuses: PermissionStatusMapType;
 };
-// export type PermissionMonitoringMachineEvents =
-//   | { type: 'checkPermissions' }
-//   | {
-//       type: 'permissionChecked';
-//       permission: Permission;
-//       status: PermissionStatus;
-//     }
-//   | {
-//       type: 'triggerPermissionCheck';
-//       permission: Permission;
-//     }
-//   | {
-//       type: 'triggerPermissionRequest';
-//       permission: Permission;
-//     }
-//   | { type: 'applicationForegrounded' }
-//   | { type: 'applicationBackgrounded' };
 
 export type PermissionMachineEvents =
   | { type: 'triggerPermissionCheck' }

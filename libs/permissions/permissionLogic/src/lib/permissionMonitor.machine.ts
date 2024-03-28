@@ -1,4 +1,5 @@
 import {
+  Permission,
   PermissionMonitoringMachineEvents,
   Permissions,
   PermissionStatusMapType,
@@ -30,6 +31,7 @@ export const permissionMonitoringMachine = setup({
     applicationLifecycleReportingMachine:
       stubApplicationLifecycleReportingActorLogic,
     permissionCheckerAndRequesterMachine,
+    features: setup({}).createMachine({}),
   },
 
   actions: {
@@ -66,13 +68,45 @@ export const permissionMonitoringMachine = setup({
   id: 'bigKahuna',
   type: 'parallel',
 
+  // TODO: this should live at the top level of the application, not here
+  invoke: [{ src: 'features' }],
+
   context: {
     permissionsStatuses: InitialPermissionStatusMap,
     permissionSubscribers: EmptyPermissionSubscriberMap,
   },
   on: {
     subscribeToPermissionStatuses: {
-      actions: [log('received permission subscription'), log('or did we')],
+      actions: assign(({ context, event }) => {
+        const { permissions } = event;
+        const { permissionSubscribers } = context;
+
+        // Create a new permissionSubscribers object to avoid mutating the original
+        const updatedPermissionSubscribers: PermissionSubscriberMap = {
+          ...permissionSubscribers,
+        };
+
+        // Iterate over each permission in the event's permissions array
+        permissions.forEach((permission: Permission) => {
+          // If the permission doesn't exist in the permissionSubscribers map, initialize it as an empty array
+          if (!updatedPermissionSubscribers[permission]) {
+            updatedPermissionSubscribers[permission] = [];
+          }
+
+          // Add the actor to the subscribers list for the permission, ensuring not to add duplicates
+          const actorAlreadySubscribed = updatedPermissionSubscribers[
+            permission
+          ].some((actor) => actor.id === event.self.id);
+
+          if (!actorAlreadySubscribed) {
+            updatedPermissionSubscribers[permission].push(event.self);
+          }
+        });
+
+        return {
+          permissionSubscribers: updatedPermissionSubscribers,
+        };
+      }),
     },
   },
   // entry: raise({ type: 'subscribeToPermissionStatuses', permissions: [] }),

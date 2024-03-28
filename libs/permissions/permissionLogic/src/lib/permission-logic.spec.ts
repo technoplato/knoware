@@ -325,46 +325,97 @@ describe('Permission Monitoring Machine', () => {
       );
     });
     describe('Single Subscriber', () => {
-      const dummyFeatureMachine = setup({
-        actions: {
-          sendSubscriptionRequestForStatusUpdates:
-            //TODO this is not sending figure out whhy
-            sendTo(
+      it('should allow subscriptions from a subscriber to any permissions', () => {
+        const dummyFeatureMachine = setup({
+          actions: {
+            sendSubscriptionRequestForStatusUpdates: sendTo(
               ({ system }) => {
                 const actorRef: AnyActorRef = system.get('bigKahuna');
-                console.log({ actorRef });
                 return actorRef;
               },
-              {
+              ({ self }) => ({
                 type: 'subscribeToPermissionStatuses',
-                // permissions: [Permissions.bluetooth],
-              }
+                permissions: [Permissions.bluetooth],
+                self,
+              })
             ),
-          // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
-        },
-      }).createMachine({
-        id: 'dummyFeatureId',
-        entry: [
-          'sendSubscriptionRequestForStatusUpdates',
-          log('subscribe to status updates'),
-        ],
-      });
-      it('should allow subscriptions from a subscriber to any permissions', () => {
-        const actor = createActor(permissionMonitoringMachine, {
-          parent: undefined,
-          systemId: 'bigKahuna',
-        }).start();
+            // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
+          },
+        }).createMachine({
+          id: 'dummyFeatureId',
+          entry: [
+            'sendSubscriptionRequestForStatusUpdates',
+            log('subscribe to status updates'),
+          ],
+        });
 
-        const dummyFeatureActor = createActor(dummyFeatureMachine).start();
+        const actor = createActor(
+          permissionMonitoringMachine.provide({
+            actors: {
+              features: dummyFeatureMachine,
+            },
+          }),
+          {
+            parent: undefined,
+            systemId: 'bigKahuna',
+          }
+        ).start();
 
         const state = actor.getSnapshot();
         expect(
-          state.context.permissionSubscribers?.[Permissions.bluetooth]
-            ?.length ?? 0
+          state.context.permissionSubscribers[Permissions.bluetooth].length
+        ).toEqual(1);
+      });
+
+      it(/*FIXME: how do I access the actor
+       or trigger the subscription request again
+       or configure different starting context via input
+       */ 'should not add a subscriber if the subscriber is already subscribed', () => {
+        const dummyFeatureMachineThatSubscribesTwice = setup({
+          actions: {
+            sendSubscriptionRequestForStatusUpdates: sendTo(
+              ({ system }) => {
+                const actorRef: AnyActorRef = system.get('bigKahuna');
+                return actorRef;
+              },
+              ({ self }) => ({
+                type: 'subscribeToPermissionStatuses',
+                permissions: [Permissions.bluetooth],
+                self,
+              })
+            ),
+            // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
+          },
+        }).createMachine({
+          id: 'dummyFeatureId',
+          entry: [
+            'sendSubscriptionRequestForStatusUpdates',
+            'sendSubscriptionRequestForStatusUpdates',
+            log('subscribe to status updates'),
+          ],
+        });
+
+        const actor = createActor(
+          permissionMonitoringMachine.provide({
+            actors: {
+              features: dummyFeatureMachineThatSubscribesTwice,
+            },
+          }),
+          {
+            parent: undefined,
+            systemId: 'bigKahuna',
+          }
+        ).start();
+
+        expect(
+          actor.getSnapshot().context.permissionSubscribers[
+            Permissions.bluetooth
+          ].length
         ).toEqual(1);
       });
     });
   });
+
   it('handle the happy path of being invoked, checking permission initially and then handle a permission request', async () => {
     const permission: Permission = Permissions.microphone;
 
