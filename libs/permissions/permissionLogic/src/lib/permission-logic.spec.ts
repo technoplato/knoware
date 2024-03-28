@@ -367,11 +367,8 @@ describe('Permission Monitoring Machine', () => {
         ).toEqual(1);
       });
 
-      it(/*FIXME: how do I access the actor
-       or trigger the subscription request again
-       or configure different starting context via input
-       */ 'should not add a subscriber if the subscriber is already subscribed', () => {
-        const dummyFeatureMachineThatSubscribesTwice = setup({
+      it('should notify subscribers of changes to permissions', (done) => {
+        const dummyFeatureMachine = setup({
           actions: {
             sendSubscriptionRequestForStatusUpdates: sendTo(
               ({ system }) => {
@@ -390,15 +387,39 @@ describe('Permission Monitoring Machine', () => {
           id: 'dummyFeatureId',
           entry: [
             'sendSubscriptionRequestForStatusUpdates',
-            'sendSubscriptionRequestForStatusUpdates',
             log('subscribe to status updates'),
           ],
+          on: {
+            permissionStatusChanged: {
+              actions: [
+                log(
+                  ({ event }) =>
+                    event.permission + ' status changed' + ' to ' + event.status
+                ),
+                () => {
+                  done();
+                },
+              ],
+            },
+            // permissionGranted: {
+            //   actions: [
+            //     log('permission granted'),
+            //     () => {
+            //       console.log('another event');
+            //       done();
+            //     },
+            //   ],
+            // },
+            // permissionDenied: {
+            //   actions: log('permission denied'),
+            // },
+          },
         });
 
         const actor = createActor(
           permissionMonitoringMachine.provide({
             actors: {
-              features: dummyFeatureMachineThatSubscribesTwice,
+              features: dummyFeatureMachine,
             },
           }),
           {
@@ -407,11 +428,61 @@ describe('Permission Monitoring Machine', () => {
           }
         ).start();
 
+        const state = actor.getSnapshot();
         expect(
-          actor.getSnapshot().context.permissionSubscribers[
-            Permissions.bluetooth
-          ].length
+          state.context.permissionSubscribers[Permissions.bluetooth].length
         ).toEqual(1);
+      });
+
+      describe('Edge Cases', () => {
+        it('should not add a subscriber if the subscriber is already subscribed', () => {
+          /*FIXME: I don't like having to create another test actor for this
+       how do I access the actor
+       or trigger the subscription request again
+       or configure different starting context via input
+       */
+          const dummyFeatureMachineThatSubscribesTwice = setup({
+            actions: {
+              sendSubscriptionRequestForStatusUpdates: sendTo(
+                ({ system }) => {
+                  const actorRef: AnyActorRef = system.get('bigKahuna');
+                  return actorRef;
+                },
+                ({ self }) => ({
+                  type: 'subscribeToPermissionStatuses',
+                  permissions: [Permissions.bluetooth],
+                  self,
+                })
+              ),
+              // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
+            },
+          }).createMachine({
+            id: 'dummyFeatureId',
+            entry: [
+              'sendSubscriptionRequestForStatusUpdates',
+              /*Second subscription should have no effect*/ 'sendSubscriptionRequestForStatusUpdates',
+              log('subscribe to status updates'),
+            ],
+          });
+
+          const actor = createActor(
+            permissionMonitoringMachine.provide({
+              actors: {
+                features: dummyFeatureMachineThatSubscribesTwice,
+              },
+            }),
+            {
+              parent: undefined,
+              systemId: 'bigKahuna',
+            }
+          ).start();
+
+          expect(
+            actor.getSnapshot().context.permissionSubscribers[
+              Permissions.bluetooth
+            ].length
+          ).toEqual(1);
+        });
       });
     });
   });

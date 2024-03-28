@@ -58,27 +58,6 @@ export const permissionCheckerAndRequesterMachine = setup({
       // @ts-expect-error TODO how do I type these actions?
       statuses: ({ event }) => event.output,
     }),
-
-    /**
-     * I tried putting reportPermissionRequestResult as an action, but it requied
-     * use of checkedSendParent and ran into this error when attempting to use that
-     *
-     * in onDone, but it didn't work
-     *
-     * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
-     */
-    // reportPermissionRequestResult: raise({
-    //   type: 'checkedSendParent',
-    //   params({ event }) {
-    //     console.log(JSON.stringify(event, null, 2));
-
-    //     return {
-    //       type: 'permissionRequestCompleted',
-    //       status: event.output.status,
-    //       permission: event.output.permission,
-    //     };
-    //   },
-    // }),
   },
 
   actors: {

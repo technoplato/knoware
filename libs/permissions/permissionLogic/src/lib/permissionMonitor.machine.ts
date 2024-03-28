@@ -4,7 +4,16 @@ import {
   Permissions,
   PermissionStatusMapType,
 } from './permission.types';
-import { assertEvent, assign, log, raise, sendTo, setup } from 'xstate';
+import {
+  assertEvent,
+  assign,
+  createMachine,
+  enqueueActions,
+  log,
+  raise,
+  sendTo,
+  setup,
+} from 'xstate';
 import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
 import { InitialPermissionStatusMap } from './permission.fixtures';
 import { PermissionSubscriberMap } from './permission-logic.spec';
@@ -41,6 +50,20 @@ export const permissionMonitoringMachine = setup({
         return event.statuses;
       },
     }),
+    broadcastPermissionsToListeners: enqueueActions(
+      ({ context, event, enqueue }) => {
+        console.log(event);
+        Object.keys(context.permissionSubscribers).forEach((permission) => {
+          context.permissionSubscribers[permission].forEach((actorRef) => {
+            enqueue.sendTo(actorRef, {
+              type: 'permissionStatusChanged',
+              permission,
+              status: context.permissionsStatuses[permission],
+            });
+          });
+        });
+      }
+    ),
     assignPermissionRequestResultToContext: assign({
       permissionsStatuses: ({ event, context }) => {
         assertEvent(event, 'permissionRequestCompleted');
@@ -143,7 +166,7 @@ export const permissionMonitoringMachine = setup({
         allPermissionsChecked: {
           actions: [
             'assignPermissionCheckResultsToContext',
-            // TODO 'broadcastPermissionsToListeners',
+            'broadcastPermissionsToListeners',
           ],
         },
 
