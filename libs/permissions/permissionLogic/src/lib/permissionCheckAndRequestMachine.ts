@@ -7,6 +7,8 @@ import {
   setup,
   Snapshot,
 } from 'xstate';
+import { unimplementedPermissionMachineActions } from './permission.actions';
+import { InitialPermissionStatusMap } from './permission.fixtures';
 import {
   Permission,
   PermissionMachineEvents,
@@ -15,8 +17,6 @@ import {
   PermissionStatus,
   PermissionStatusMapType,
 } from './permission.types';
-import { unimplementedPermissionMachineActions } from './permission.actions';
-import { InitialPermissionStatusMap } from './permission.fixtures';
 
 export const permissionCheckerAndRequesterMachine = setup({
   types: {
@@ -61,7 +61,7 @@ export const permissionCheckerAndRequesterMachine = setup({
   },
 
   actors: {
-    checkAllPermissions: fromPromise(async () => {
+    checkAllPermissions: fromPromise(async ({ input, self, system }) => {
       const result =
         // TODO how can i make this implementation more injectable and still ergnomic
         await unimplementedPermissionMachineActions.checkAllPermissions();
@@ -161,12 +161,13 @@ export const permissionCheckerAndRequesterMachine = setup({
             log('child on done checkingPermissions'),
             'savePermissionCheckResult',
 
+            // This is causing the typescript erro in onDone, but not sure why
             {
               type: 'checkedSendParent',
               params({ event }) {
                 return {
                   type: 'allPermissionsChecked',
-                  statuses: event.output,
+                  statuses: event.output as PermissionStatusMapType,
                 };
               },
             },

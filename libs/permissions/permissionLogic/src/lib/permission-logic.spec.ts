@@ -5,7 +5,7 @@ import {
   AnyActorRef,
   assign,
   createActor,
-  createMachine,
+  enqueueActions,
   InspectionEvent,
   log,
   raise,
@@ -20,16 +20,16 @@ import {
   PermissionStatus,
   PermissionStatuses,
 } from './permission.types';
+import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
 import {
   EmptyPermissionSubscriberMap,
   permissionMonitoringMachine,
 } from './permissionMonitor.machine';
-import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
-import { createSkyInspector } from '@statelyai/inspect';
 
 const ActorSystemIds = {
   permissionMonitoring: 'permissionMonitoringMachineId',
   permissionReporting: 'permissionReportingMachineId',
+  permissionCheckerAndRequester: 'permissionCheckerAndRequesterMachineId',
 } as const;
 
 const countingMachineThatNeedsPermissionAt3 = setup({
@@ -304,7 +304,13 @@ describe('Permission Requester and Checker Machine', () => {
       };
 
       const parentMachine = setup({
-        types: {} as { events: PermissionMonitoringMachineEvents },
+        types: {} as {
+          events: PermissionMonitoringMachineEvents;
+          children: {
+            [ActorSystemIds.permissionCheckerAndRequester]: 'permissionCheckerAndRequesterMachine';
+          };
+        },
+
         actors: {
           permissionCheckerAndRequesterMachine,
         },
@@ -315,14 +321,15 @@ describe('Permission Requester and Checker Machine', () => {
           },
           triggerPermissionCheck: {
             actions: [
-              sendTo('someFooMachine', {
+              sendTo(ActorSystemIds.permissionCheckerAndRequester, {
                 type: 'triggerPermissionCheck',
               }),
             ],
           },
         },
         invoke: {
-          id: 'someFooMachine',
+          id: ActorSystemIds.permissionCheckerAndRequester,
+          systemId: ActorSystemIds.permissionCheckerAndRequester,
           src: 'permissionCheckerAndRequesterMachine',
           input: ({ self }) => ({ parent: self }),
         },
@@ -333,7 +340,9 @@ describe('Permission Requester and Checker Machine', () => {
 
       await waitFor(
         actorRef,
-        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
+        (state) =>
+          state.children.permissionCheckerAndRequesterMachineId!.getSnapshot()
+            .value === 'idle'
       );
 
       expect(result).not.toBeNull();
@@ -513,9 +522,15 @@ describe('Permission Monitoring Machine', () => {
             },
             waitingForPermission: {
               entry: raise({ type: 'goToWaitingForPermission' }),
-              on: { goToWaitingForPermission: {} },
+              on: {
+                'permission.granted.bluetooth': { target: 'bluetoothGranted' },
+                'permission.denied.bluetooth': { target: 'bluetoothDenied' },
+              },
             },
-            final: {
+            bluetoothGranted: {
+              type: 'final',
+            },
+            bluetoothDenied: {
               type: 'final',
             },
           },
@@ -526,11 +541,32 @@ describe('Permission Monitoring Machine', () => {
             src: 'permissionReportingMachine',
             input: { permissions: [Permissions.bluetooth] },
           },
+          on: {
+            permissionStatusChanged: {
+              actions: [
+                enqueueActions(({ context, event, enqueue }) => {
+                  const { permission, status } = event;
+                  console.log({ permission, status });
+                  if (permission === Permissions.bluetooth) {
+                    if (status === PermissionStatuses.granted) {
+                      enqueue.raise({
+                        type: 'permission.bluetooth.granted',
+                      });
+                    }
+                  }
+                }),
+                log(
+                  ({ event }) =>
+                    event.permission + ' status changed' + ' to ' + event.status
+                ),
+              ],
+            },
+          },
         },
       },
     });
     describe('Single Subscriber', () => {
-      it('should allow subscriptions from a subscriber to any permissions', () => {
+      it('should allow subscriptions from a subscriber to a single permission', () => {
         const actor = createActor(
           permissionMonitoringMachine.provide({
             actors: {
@@ -566,6 +602,9 @@ describe('Permission Monitoring Machine', () => {
         expect(
           state.context.permissionSubscribers[Permissions.bluetooth].length
         ).toEqual(1);
+
+        const child = Object.keys(actor.getSnapshot().children);
+        console.log({ child });
       });
 
       describe('Edge Cases', () => {
