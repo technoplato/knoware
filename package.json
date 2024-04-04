@@ -6,7 +6,9 @@
   "private": true,
   "dependencies": {
     "@statelyai/inspect": "^0.2.5",
+    "@types/ws": "^8.5.10",
     "tslib": "^2.3.0",
+    "ws": "^8.16.0",
     "xstate": "^5.9.1"
   },
   "devDependencies": {

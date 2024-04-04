@@ -1,11 +1,14 @@
 // permissionMonitoringMachine.test.ts
+const prettyMuchForever = Math.pow(2, 31) - 1;
 
 import {
   AnyActorRef,
   assign,
   createActor,
+  createMachine,
   InspectionEvent,
   log,
+  raise,
   sendTo,
   setup,
   waitFor,
@@ -22,19 +25,12 @@ import {
   permissionMonitoringMachine,
 } from './permissionMonitor.machine';
 import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
+import { createSkyInspector } from '@statelyai/inspect';
 
-const createPermissionHandlerActor = {
-  permissions: [],
-  permissionHandlerMap: {
-    bluetooth: {
-      granted: {
-        action: '',
-        target: '',
-      },
-      rvoked: {},
-    },
-  },
-};
+const ActorSystemIds = {
+  permissionMonitoring: 'permissionMonitoringMachineId',
+  permissionReporting: 'permissionReportingMachineId',
+} as const;
 
 const countingMachineThatNeedsPermissionAt3 = setup({
   types: {
@@ -73,7 +69,7 @@ const countingMachineThatNeedsPermissionAt3 = setup({
     handlingPermissions: {
       description:
         'This state is a placeholder for designing' +
-        'how we will allow feature machines to handle thier ' +
+        'how we will allow feature machines to handle their ' +
         "permissions. Right now we're doing everything inline" +
         'but this will be extracted to something that is ' +
         'straightforward for the end developer to use and test',
@@ -110,24 +106,153 @@ const countingMachineThatNeedsPermissionAt3 = setup({
     },
   },
 });
+export type SimpleInspectorOptions = {
+  onLiveInspectActive?: (url: string) => Promise<void>;
+};
+
+export function createSimpleInspector(options: SimpleInspectorOptions = {}) {
+  const { onLiveInspectActive } = options;
+  const liveInspectUrl = 'https://example.com/inspect/session123';
+
+  // Simulate the WebSocket onopen event with a promise that resolves after 500ms
+  const socketOpenPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      console.log('WebSocket opened');
+      resolve();
+    }, 500);
+  });
+
+  // Return an object with a method to wait for the live inspect session to be active
+  return {
+    waitForLiveInspectActive: async () => {
+      await socketOpenPromise;
+      if (onLiveInspectActive) {
+        await onLiveInspectActive(liveInspectUrl);
+      }
+    },
+  };
+}
+
+// describe('createSkyInspector', () => {
+//   it(
+//     /* ⚠️failing attempt to debug with stately sky*/ 'should wait for the live inspect session to be active',
+//     async () => {
+//       const mockCallback = jest.fn();
+//
+//       const { waitForLiveInspectActive, inspector } = createSkyInspector({
+//         onLiveInspectActive: async (url) => {
+//           await new Promise((resolve) => setTimeout(resolve, 1000));
+//           mockCallback(url);
+//         },
+//       });
+//
+//       // Call the waitForLiveInspectActive function without awaiting its completion
+//       const waitPromise = waitForLiveInspectActive();
+//
+//       // Assert that the inspector object is created
+//       expect(inspector).toBeDefined();
+//
+//       // Wait for a short time (less than the WebSocket open delay and callback delay)
+//       await new Promise((resolve) => setTimeout(resolve, 300));
+//
+//       // Assert that the callback has not been called yet
+//       expect(mockCallback).not.toHaveBeenCalled();
+//
+//       // Wait for the waitForLiveInspectActive promise to resolve
+//       /* ✅This is properly being awaited*/ await waitPromise;
+//
+//       // Assert that the callback has been called with the correct URL
+//       // expect(mockCallback).toHaveBeenCalledWith(
+//       //   'https://stately.ai/inspect/session123'
+//       // );
+//
+//       const countingActor = createActor(countingMachineThatNeedsPermissionAt3, {
+//         inspect: inspector.inspect,
+//       }).start();
+//
+//       /* 🤔 If I set a brekapoint here, then the inspector won't "connect" until the promise at the bottom*/ countingActor.send(
+//         { type: 'count.inc' }
+//       );
+//       countingActor.send({ type: 'count.inc' });
+//       countingActor.send({ type: 'count.inc' });
+//       countingActor.send({ type: 'count.inc' });
+//       expect(countingActor.getSnapshot().context.count).toBe(3);
+//       expect(countingActor.getSnapshot().value).toStrictEqual({
+//         counting: 'disabled',
+//         handlingPermissions: 'active',
+//       });
+//
+//       await new Promise((resolve) => setTimeout(resolve, prettyMuchForever));
+//     },
+//     prettyMuchForever
+//   );
+// });
+
+describe('createSimpleInspector', () => {
+  it('should wait for the live inspect session to be active', async () => {
+    const mockCallback = jest.fn();
+
+    const inspector = createSimpleInspector({
+      onLiveInspectActive: async (url) => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        mockCallback(url);
+      },
+    });
+
+    // Call the waitForLiveInspectActive method without awaiting its completion
+    const waitPromise = inspector.waitForLiveInspectActive();
+
+    // Wait for a short time (less than the WebSocket open delay and callback delay)
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // Assert that the callback has not been called yet
+    expect(mockCallback).not.toHaveBeenCalled();
+
+    // Wait for the waitForLiveInspectActive promise to resolve
+    await waitPromise;
+
+    // Assert that the callback has been called with the correct URL
+    expect(mockCallback).toHaveBeenCalledWith(
+      'https://example.com/inspect/session123'
+    );
+  });
+});
 
 describe('Counting Machine That Needs Permission At 3', () => {
   it('should not increment count beyond 3, but rather ask permission', async () => {
+    // const inspector = await createSkyInspector({
+    //   onerror: (err) => console.log(err),
+    //   onLiveInspectActive: async (url) => {
+    //     console.log('Live inspect session is active!');
+    //     console.log('URL:', url);
+    //     console.log('Async operations completed!');
+    //   },
+    // });
     const countingActor = createActor(countingMachineThatNeedsPermissionAt3, {
-      // inspect: createSkyInspector({
-      //   onerror: (err) => console.log(err),
-      // }).inspect,
+      // inspect: inspector.inspect,
     }).start();
-    countingActor.send({ type: 'count.inc' });
+
     countingActor.send({ type: 'count.inc' });
     countingActor.send({ type: 'count.inc' });
     countingActor.send({ type: 'count.inc' });
     expect(countingActor.getSnapshot().context.count).toBe(3);
     expect(countingActor.getSnapshot().value).toStrictEqual({
+      counting: 'enabled',
+      handlingPermissions: 'idle',
+    });
+
+    countingActor.send({ type: 'count.inc' });
+    expect(countingActor.getSnapshot().value).toStrictEqual({
       counting: 'disabled',
       handlingPermissions: 'active',
     });
-  });
+    expect(countingActor.getSnapshot().context.count).toBe(3);
+
+    countingActor.send({ type: 'count.inc' });
+    expect(countingActor.getSnapshot().context.count).toBe(3);
+
+    // await new Promise((resolve) => setTimeout(resolve, prettyMuchForever));
+  }); // prettyMuchForever
 
   it('should start in idle state', async () => {
     const countingActor = createActor(
@@ -324,40 +449,97 @@ describe('Permission Monitoring Machine', () => {
         EmptyPermissionSubscriberMap
       );
     });
+    const permissionReportingMachine = setup({
+      types: {
+        input: {} as {
+          permissions: Array<Permission>;
+        },
+        context: {} as {
+          permissions: Array<Permission>;
+        },
+      },
+      actions: {
+        sendSubscriptionRequestForStatusUpdates: sendTo(
+          ({ system }) => {
+            const actorRef: AnyActorRef = system.get(
+              ActorSystemIds.permissionMonitoring
+            );
+            return actorRef;
+          },
+          ({ self, context }) => ({
+            type: 'subscribeToPermissionStatuses',
+            permissions: context.permissions,
+            self,
+          })
+        ),
+        // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
+      },
+    }).createMachine({
+      description:
+        "This actor's job is to report permission statuses to the actors that have invoked it. We abstract away this functionality so that it is reusable by any actor that needs it and so they don't need to know how permissions are checked. This keeps control centralized and easy to modify the behavior of.",
+      id: ActorSystemIds.permissionReporting,
+      context: ({ input }) => ({ permissions: input.permissions }),
+      entry: [
+        'sendSubscriptionRequestForStatusUpdates',
+        log('subscribe to status updates'),
+      ],
+      on: {
+        permissionStatusChanged: {
+          // We eventually want to communicate this to the actors that have invoked us
+          actions: [
+            log(
+              ({ event }) =>
+                event.permission + ' status changed' + ' to ' + event.status
+            ),
+          ],
+        },
+      },
+    });
+
+    const someFeatureMachine = setup({
+      actors: {
+        permissionReportingMachine,
+      },
+    }).createMachine({
+      id: 'someFeatureMachineId',
+      type: 'parallel',
+      states: {
+        foo: {
+          initial: 'start',
+          states: {
+            start: {
+              entry: raise({ type: 'goToWaitingForPermission' }),
+              on: { goToWaitingForPermission: 'waitingForPermission' },
+            },
+            waitingForPermission: {
+              entry: raise({ type: 'goToWaitingForPermission' }),
+              on: { goToWaitingForPermission: {} },
+            },
+            final: {
+              type: 'final',
+            },
+          },
+        },
+        handlingPermissions: {
+          invoke: {
+            id: 'permissionHandler',
+            src: 'permissionReportingMachine',
+            input: { permissions: [Permissions.bluetooth] },
+          },
+        },
+      },
+    });
     describe('Single Subscriber', () => {
       it('should allow subscriptions from a subscriber to any permissions', () => {
-        const dummyFeatureMachine = setup({
-          actions: {
-            sendSubscriptionRequestForStatusUpdates: sendTo(
-              ({ system }) => {
-                const actorRef: AnyActorRef = system.get('bigKahuna');
-                return actorRef;
-              },
-              ({ self }) => ({
-                type: 'subscribeToPermissionStatuses',
-                permissions: [Permissions.bluetooth],
-                self,
-              })
-            ),
-            // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
-          },
-        }).createMachine({
-          id: 'dummyFeatureId',
-          entry: [
-            'sendSubscriptionRequestForStatusUpdates',
-            log('subscribe to status updates'),
-          ],
-        });
-
         const actor = createActor(
           permissionMonitoringMachine.provide({
             actors: {
-              features: dummyFeatureMachine,
+              features: someFeatureMachine,
             },
           }),
           {
             parent: undefined,
-            systemId: 'bigKahuna',
+            systemId: ActorSystemIds.permissionMonitoring,
           }
         ).start();
 
@@ -367,64 +549,16 @@ describe('Permission Monitoring Machine', () => {
         ).toEqual(1);
       });
 
-      it('should notify subscribers of changes to permissions', (done) => {
-        const dummyFeatureMachine = setup({
-          actions: {
-            sendSubscriptionRequestForStatusUpdates: sendTo(
-              ({ system }) => {
-                const actorRef: AnyActorRef = system.get('bigKahuna');
-                return actorRef;
-              },
-              ({ self }) => ({
-                type: 'subscribeToPermissionStatuses',
-                permissions: [Permissions.bluetooth],
-                self,
-              })
-            ),
-            // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
-          },
-        }).createMachine({
-          id: 'dummyFeatureId',
-          entry: [
-            'sendSubscriptionRequestForStatusUpdates',
-            log('subscribe to status updates'),
-          ],
-          on: {
-            permissionStatusChanged: {
-              actions: [
-                log(
-                  ({ event }) =>
-                    event.permission + ' status changed' + ' to ' + event.status
-                ),
-                () => {
-                  done();
-                },
-              ],
-            },
-            // permissionGranted: {
-            //   actions: [
-            //     log('permission granted'),
-            //     () => {
-            //       console.log('another event');
-            //       done();
-            //     },
-            //   ],
-            // },
-            // permissionDenied: {
-            //   actions: log('permission denied'),
-            // },
-          },
-        });
-
+      it('should notify subscribers of changes to permissions', () => {
         const actor = createActor(
           permissionMonitoringMachine.provide({
             actors: {
-              features: dummyFeatureMachine,
+              features: someFeatureMachine,
             },
           }),
           {
             parent: undefined,
-            systemId: 'bigKahuna',
+            systemId: ActorSystemIds.permissionMonitoring,
           }
         ).start();
 
@@ -445,7 +579,9 @@ describe('Permission Monitoring Machine', () => {
             actions: {
               sendSubscriptionRequestForStatusUpdates: sendTo(
                 ({ system }) => {
-                  const actorRef: AnyActorRef = system.get('bigKahuna');
+                  const actorRef: AnyActorRef = system.get(
+                    ActorSystemIds.permissionMonitoring
+                  );
                   return actorRef;
                 },
                 ({ self }) => ({
@@ -473,7 +609,7 @@ describe('Permission Monitoring Machine', () => {
             }),
             {
               parent: undefined,
-              systemId: 'bigKahuna',
+              systemId: ActorSystemIds.permissionMonitoring,
             }
           ).start();
 
