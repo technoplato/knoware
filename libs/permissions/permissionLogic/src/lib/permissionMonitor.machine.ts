@@ -5,9 +5,9 @@ import {
   PermissionStatusMapType,
 } from './permission.types';
 import {
+  AnyActorRef,
   assertEvent,
   assign,
-  createMachine,
   enqueueActions,
   log,
   raise,
@@ -18,6 +18,7 @@ import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecyc
 import { InitialPermissionStatusMap } from './permission.fixtures';
 import { PermissionSubscriberMap } from './permission-logic.spec';
 import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
+import { ActorSystemIds } from './actorIds';
 
 export const EmptyPermissionSubscriberMap: PermissionSubscriberMap =
   Object.values(Permissions).reduce(
@@ -35,6 +36,11 @@ export const permissionMonitoringMachine = setup({
   types: {} as {
     events: PermissionMonitoringMachineEvents;
     context: PermissionsMonitoringMachineContext;
+    children: {
+      [ActorSystemIds.permissionCheckerAndRequester]: 'permissionCheckerAndRequesterMachine';
+      [ActorSystemIds.lifecycleReporting]: 'applicationLifecycleReportingMachine';
+      [ActorSystemIds.features]: 'features';
+    };
   },
   actors: {
     applicationLifecycleReportingMachine:
@@ -52,16 +58,16 @@ export const permissionMonitoringMachine = setup({
     }),
     broadcastPermissionsToListeners: enqueueActions(
       ({ context, event, enqueue }) => {
-        console.log(event);
         Object.keys(context.permissionSubscribers).forEach((permission) => {
-          context.permissionSubscribers[permission].forEach((actorRef) => {
-            enqueue.sendTo(actorRef, {
-              type: 'permissionStatusChanged',
-              // @ts-expect-error TODO type these
-              permission,
-              status: context.permissionsStatuses[permission],
-            });
-          });
+          context.permissionSubscribers[permission].forEach(
+            (actorRef: AnyActorRef) => {
+              enqueue.sendTo(actorRef, {
+                type: 'permissionStatusChanged',
+                permission,
+                status: context.permissionsStatuses[permission],
+              });
+            }
+          );
         });
       }
     ),
@@ -75,25 +81,34 @@ export const permissionMonitoringMachine = setup({
       },
     }),
     raisePermissionCheck: raise({ type: 'triggerPermissionCheck' }),
-    sendPermissionCheck: sendTo('someFooMachine', {
+    sendPermissionCheck: sendTo(ActorSystemIds.permissionCheckerAndRequester, {
       type: 'triggerPermissionCheck',
     }),
-    sendPermissionRequest: sendTo('someFooMachine', ({ context, event }) => {
-      assertEvent(event, 'triggerPermissionRequest');
+    sendPermissionRequest: sendTo(
+      ActorSystemIds.permissionCheckerAndRequester,
+      ({ context, event }) => {
+        assertEvent(event, 'triggerPermissionRequest');
 
-      return {
-        type: 'triggerPermissionRequest',
-        permission: event.permission,
-      };
-    }),
+        return {
+          type: 'triggerPermissionRequest',
+          permission: event.permission,
+        };
+      }
+    ),
   },
 }).createMachine({
   /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O13fJhXKhgeiArq6Ple0CDGzJVwq2sI6KeDzrcMQjz1zzYkVOGJKvsZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2DzLtwIpdwgPJAOJsmTqkFMTFdhcXj8MAz-kEcFDeGiqFRNdnzf+BUhlXYhaw8H8JR2WJXFRJNDSnUgqlvCR7zKJ8ENEIoJAASVgLCpFkeRFGUF8qzMSxbGVb9fw3eEAJ3CwPC-KIlQcJEbFCeN4lgnJ4JvTCWBQx8BHQ6pijw+omhaYiPUrOdq0sVwnGXH8NWJBwHGJCVXEA4VlnUNwnC8RcYy3C8jh4qkszNekSLksiEH2GF-E8fZ3GxSNAJlYhWysCDwkhXZ9yHNIgA */
-  id: 'bigKahuna',
+  id: ActorSystemIds.permissionMonitoring,
   type: 'parallel',
 
   // TODO: this should live at the top level of the application, not here
-  invoke: [{ src: 'features' }],
+  invoke: [
+    {
+      src: 'features',
+      systemId: ActorSystemIds.features,
+      id: ActorSystemIds.features,
+    },
+  ],
 
   context: {
     permissionsStatuses: InitialPermissionStatusMap,
@@ -183,7 +198,8 @@ export const permissionMonitoringMachine = setup({
         },
       },
       invoke: {
-        id: 'someFooMachine',
+        id: ActorSystemIds.permissionCheckerAndRequester,
+        systemId: ActorSystemIds.permissionCheckerAndRequester,
         src: 'permissionCheckerAndRequesterMachine',
         input: ({ self }) => ({ parent: self }),
       },

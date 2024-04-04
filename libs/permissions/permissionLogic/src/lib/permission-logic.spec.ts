@@ -1,5 +1,5 @@
 // permissionMonitoringMachine.test.ts
-const prettyMuchForever = Math.pow(2, 31) - 1;
+import { ActorSystemIds } from './actorIds';
 
 import {
   AnyActorRef,
@@ -25,12 +25,6 @@ import {
   EmptyPermissionSubscriberMap,
   permissionMonitoringMachine,
 } from './permissionMonitor.machine';
-
-const ActorSystemIds = {
-  permissionMonitoring: 'permissionMonitoringMachineId',
-  permissionReporting: 'permissionReportingMachineId',
-  permissionCheckerAndRequester: 'permissionCheckerAndRequesterMachineId',
-} as const;
 
 const countingMachineThatNeedsPermissionAt3 = setup({
   types: {
@@ -106,131 +100,13 @@ const countingMachineThatNeedsPermissionAt3 = setup({
     },
   },
 });
-export type SimpleInspectorOptions = {
-  onLiveInspectActive?: (url: string) => Promise<void>;
-};
-
-export function createSimpleInspector(options: SimpleInspectorOptions = {}) {
-  const { onLiveInspectActive } = options;
-  const liveInspectUrl = 'https://example.com/inspect/session123';
-
-  // Simulate the WebSocket onopen event with a promise that resolves after 500ms
-  const socketOpenPromise = new Promise<void>((resolve) => {
-    setTimeout(() => {
-      console.log('WebSocket opened');
-      resolve();
-    }, 500);
-  });
-
-  // Return an object with a method to wait for the live inspect session to be active
-  return {
-    waitForLiveInspectActive: async () => {
-      await socketOpenPromise;
-      if (onLiveInspectActive) {
-        await onLiveInspectActive(liveInspectUrl);
-      }
-    },
-  };
-}
-
-// describe('createSkyInspector', () => {
-//   it(
-//     /* ⚠️failing attempt to debug with stately sky*/ 'should wait for the live inspect session to be active',
-//     async () => {
-//       const mockCallback = jest.fn();
-//
-//       const { waitForLiveInspectActive, inspector } = createSkyInspector({
-//         onLiveInspectActive: async (url) => {
-//           await new Promise((resolve) => setTimeout(resolve, 1000));
-//           mockCallback(url);
-//         },
-//       });
-//
-//       // Call the waitForLiveInspectActive function without awaiting its completion
-//       const waitPromise = waitForLiveInspectActive();
-//
-//       // Assert that the inspector object is created
-//       expect(inspector).toBeDefined();
-//
-//       // Wait for a short time (less than the WebSocket open delay and callback delay)
-//       await new Promise((resolve) => setTimeout(resolve, 300));
-//
-//       // Assert that the callback has not been called yet
-//       expect(mockCallback).not.toHaveBeenCalled();
-//
-//       // Wait for the waitForLiveInspectActive promise to resolve
-//       /* ✅This is properly being awaited*/ await waitPromise;
-//
-//       // Assert that the callback has been called with the correct URL
-//       // expect(mockCallback).toHaveBeenCalledWith(
-//       //   'https://stately.ai/inspect/session123'
-//       // );
-//
-//       const countingActor = createActor(countingMachineThatNeedsPermissionAt3, {
-//         inspect: inspector.inspect,
-//       }).start();
-//
-//       /* 🤔 If I set a brekapoint here, then the inspector won't "connect" until the promise at the bottom*/ countingActor.send(
-//         { type: 'count.inc' }
-//       );
-//       countingActor.send({ type: 'count.inc' });
-//       countingActor.send({ type: 'count.inc' });
-//       countingActor.send({ type: 'count.inc' });
-//       expect(countingActor.getSnapshot().context.count).toBe(3);
-//       expect(countingActor.getSnapshot().value).toStrictEqual({
-//         counting: 'disabled',
-//         handlingPermissions: 'active',
-//       });
-//
-//       await new Promise((resolve) => setTimeout(resolve, prettyMuchForever));
-//     },
-//     prettyMuchForever
-//   );
-// });
-
-describe('createSimpleInspector', () => {
-  it('should wait for the live inspect session to be active', async () => {
-    const mockCallback = jest.fn();
-
-    const inspector = createSimpleInspector({
-      onLiveInspectActive: async (url) => {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        mockCallback(url);
-      },
-    });
-
-    // Call the waitForLiveInspectActive method without awaiting its completion
-    const waitPromise = inspector.waitForLiveInspectActive();
-
-    // Wait for a short time (less than the WebSocket open delay and callback delay)
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    // Assert that the callback has not been called yet
-    expect(mockCallback).not.toHaveBeenCalled();
-
-    // Wait for the waitForLiveInspectActive promise to resolve
-    await waitPromise;
-
-    // Assert that the callback has been called with the correct URL
-    expect(mockCallback).toHaveBeenCalledWith(
-      'https://example.com/inspect/session123'
-    );
-  });
-});
 
 describe('Counting Machine That Needs Permission At 3', () => {
   it('should not increment count beyond 3, but rather ask permission', async () => {
-    // const inspector = await createSkyInspector({
-    //   onerror: (err) => console.log(err),
-    //   onLiveInspectActive: async (url) => {
-    //     console.log('Live inspect session is active!');
-    //     console.log('URL:', url);
-    //     console.log('Async operations completed!');
-    //   },
-    // });
-    const countingActor = createActor(countingMachineThatNeedsPermissionAt3, {
-      // inspect: inspector.inspect,
-    }).start();
+    const countingActor = createActor(
+      countingMachineThatNeedsPermissionAt3,
+      {}
+    ).start();
 
     countingActor.send({ type: 'count.inc' });
     countingActor.send({ type: 'count.inc' });
@@ -306,9 +182,7 @@ describe('Permission Requester and Checker Machine', () => {
       const parentMachine = setup({
         types: {} as {
           events: PermissionMonitoringMachineEvents;
-          children: {
-            [ActorSystemIds.permissionCheckerAndRequester]: 'permissionCheckerAndRequesterMachine';
-          };
+          children: {};
         },
 
         actors: {
@@ -390,7 +264,12 @@ describe('Permission Requester and Checker Machine', () => {
       };
 
       const parentMachine = setup({
-        types: {} as { events: PermissionMonitoringMachineEvents },
+        types: {} as {
+          events: PermissionMonitoringMachineEvents;
+          children: {
+            [ActorSystemIds.permissionCheckerAndRequester]: 'permissionCheckerAndRequesterMachine';
+          };
+        },
         actors: {
           permissionCheckerAndRequesterMachine,
         },
@@ -401,7 +280,7 @@ describe('Permission Requester and Checker Machine', () => {
           },
           triggerPermissionRequest: {
             actions: [
-              sendTo('someFooMachine', {
+              sendTo(ActorSystemIds.permissionCheckerAndRequester, {
                 type: 'triggerPermissionRequest',
                 permission: Permissions.bluetooth,
               }),
@@ -409,7 +288,7 @@ describe('Permission Requester and Checker Machine', () => {
           },
         },
         invoke: {
-          id: 'someFooMachine',
+          id: ActorSystemIds.permissionCheckerAndRequester,
           src: 'permissionCheckerAndRequesterMachine',
           input: ({ self }) => ({ parent: self }),
         },
@@ -423,7 +302,10 @@ describe('Permission Requester and Checker Machine', () => {
 
       await waitFor(
         actorRef,
-        (state) => state.children.someFooMachine?.getSnapshot().value === 'idle'
+        (state) =>
+          state.children[
+            ActorSystemIds.permissionCheckerAndRequester
+          ]!.getSnapshot().value === 'idle'
       );
 
       expect(result).not.toBeNull();
@@ -689,8 +571,8 @@ describe('Permission Monitoring Machine', () => {
 
     await waitFor(actorRef, (state) => {
       return (
-        // @ts-expect-error
-        state.children.someFooMachine?.getSnapshot().value === 'idle'
+        state.children.permissionCheckerAndRequesterMachineId.getSnapshot()
+          .value === 'idle'
       );
     });
 
@@ -705,13 +587,16 @@ describe('Permission Monitoring Machine', () => {
     });
 
     expect(
-      // @ts-expect-error
-      actorRef.getSnapshot().children.someFooMachine?.getSnapshot().value
+      actorRef
+        .getSnapshot()
+        .children.permissionCheckerAndRequesterMachineId.getSnapshot().value
     ).toBe('requestingPermission');
 
     await waitFor(actorRef, (state) => {
-      // @ts-expect-error
-      return state.children.someFooMachine?.getSnapshot().value === 'idle';
+      return (
+        state.children.permissionCheckerAndRequesterMachineId.getSnapshot()
+          .value === 'idle'
+      );
     });
 
     expect(actorRef.getSnapshot().context.permissionsStatuses).toStrictEqual({
