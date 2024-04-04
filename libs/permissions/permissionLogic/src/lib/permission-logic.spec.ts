@@ -1,8 +1,11 @@
 // permissionMonitoringMachine.test.ts
 import { ActorSystemIds } from './actorIds';
 
+import { createSkyInspector } from '@statelyai/inspect';
+import { WebSocket } from 'ws';
 import {
   AnyActorRef,
+  AnyEventObject,
   assign,
   createActor,
   enqueueActions,
@@ -340,13 +343,16 @@ describe('Permission Monitoring Machine', () => {
         EmptyPermissionSubscriberMap
       );
     });
+
     const permissionReportingMachine = setup({
       types: {
         input: {} as {
           permissions: Array<Permission>;
+          parent: AnyActorRef;
         },
         context: {} as {
           permissions: Array<Permission>;
+          parent: AnyActorRef;
         },
       },
       actions: {
@@ -364,24 +370,71 @@ describe('Permission Monitoring Machine', () => {
           })
         ),
         // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
+        checkedSendParent: enqueueActions(
+          ({ context, enqueue }, event: AnyEventObject) => {
+            if (!context.parent) {
+              console.log(
+                'WARN: an attempt to send an event to a non-existent parent'
+              );
+              return;
+            }
+
+            enqueue.sendTo(context.parent, event);
+          }
+        ),
       },
     }).createMachine({
       description:
         "This actor's job is to report permission statuses to the actors that have invoked it. We abstract away this functionality so that it is reusable by any actor that needs it and so they don't need to know how permissions are checked. This keeps control centralized and easy to modify the behavior of.",
       id: ActorSystemIds.permissionReporting,
-      context: ({ input }) => ({ permissions: input.permissions }),
+      context: ({ input }) => ({
+        permissions: input.permissions,
+        parent: input.parent,
+      }),
       entry: [
         'sendSubscriptionRequestForStatusUpdates',
         log('subscribe to status updates'),
       ],
       on: {
         permissionStatusChanged: {
+          description:
+            'Whenever the Permission Monitoring machine reports that a permission status has changed, we receive this event and can process and share with our siblings.',
           // We eventually want to communicate this to the actors that have invoked us
           actions: [
             log(
               ({ event }) =>
-                event.permission + ' status changed' + ' to ' + event.status
+                event.permission + ' status <<<changed' + ' to ' + event.status
             ),
+
+            {
+              /**
+               * I tried putting this action in the actions in setup as reportPermissionRequestResult
+               * as an action, but it requied
+               * use of checkedSendParent and ran into this error when attempting to use that
+               *
+               * in onDone, but it didn't work
+               *
+               * error: Type '"checkedSendParent"' is not assignable to type '"triggerPermissionRequest"'.ts(2322)
+               */
+              type: 'checkedSendParent',
+              params({ event }) {
+                const { permission, status } = event;
+                if (
+                  permission === Permissions.bluetooth &&
+                  status === 'granted'
+                ) {
+                  console.log('its granted yaya');
+                  return {
+                    // dynamic
+                    type: 'permission.bluetooth.granted',
+                  };
+                } else {
+                  return {
+                    type: 'permission.bluetooth.denied',
+                  };
+                }
+              },
+            },
           ],
         },
       },
@@ -403,7 +456,6 @@ describe('Permission Monitoring Machine', () => {
               on: { goToWaitingForPermission: 'waitingForPermission' },
             },
             waitingForPermission: {
-              entry: raise({ type: 'goToWaitingForPermission' }),
               on: {
                 'permission.granted.bluetooth': { target: 'bluetoothGranted' },
                 'permission.denied.bluetooth': { target: 'bluetoothDenied' },
@@ -421,28 +473,10 @@ describe('Permission Monitoring Machine', () => {
           invoke: {
             id: 'permissionHandler',
             src: 'permissionReportingMachine',
-            input: { permissions: [Permissions.bluetooth] },
-          },
-          on: {
-            permissionStatusChanged: {
-              actions: [
-                enqueueActions(({ context, event, enqueue }) => {
-                  const { permission, status } = event;
-                  console.log({ permission, status });
-                  if (permission === Permissions.bluetooth) {
-                    if (status === PermissionStatuses.granted) {
-                      enqueue.raise({
-                        type: 'permission.bluetooth.granted',
-                      });
-                    }
-                  }
-                }),
-                log(
-                  ({ event }) =>
-                    event.permission + ' status changed' + ' to ' + event.status
-                ),
-              ],
-            },
+            input: ({ self }) => ({
+              permissions: [Permissions.bluetooth],
+              parent: self,
+            }),
           },
         },
       },
@@ -465,28 +499,74 @@ describe('Permission Monitoring Machine', () => {
         expect(
           state.context.permissionSubscribers[Permissions.bluetooth].length
         ).toEqual(1);
+
+        const id =
+          state.context.permissionSubscribers[Permissions.bluetooth][0].id;
+        console.log({ id });
       });
 
-      it('should notify subscribers of changes to permissions', () => {
-        const actor = createActor(
+      it('should notify subscribers of changes to permissions', async () => {
+        const permissionMonitorActor = createActor(
           permissionMonitoringMachine.provide({
             actors: {
               features: someFeatureMachine,
             },
           }),
           {
-            parent: undefined,
             systemId: ActorSystemIds.permissionMonitoring,
+            inspect: createSkyInspector(
+              // @ts-expect-error
+              { inspectorType: 'node', WebSocket: WebSocket, autoStart: true }
+            ).inspect,
           }
         ).start();
 
-        const state = actor.getSnapshot();
+        const state = permissionMonitorActor.getSnapshot();
         expect(
           state.context.permissionSubscribers[Permissions.bluetooth].length
         ).toEqual(1);
 
-        const child = Object.keys(actor.getSnapshot().children);
-        console.log({ child });
+        const featureMachineActor =
+          permissionMonitorActor.getSnapshot().children.featuresMachineId;
+        expect(featureMachineActor?.getSnapshot().value).toStrictEqual({
+          foo: 'waitingForPermission',
+          handlingPermissions: {},
+        });
+
+        // featureMachineActor?.send({
+        //   type: 'sendPermissionRequest',
+        //   permission: Permissions.bluetooth,
+        // });
+
+        expect(permissionMonitorActor.getSnapshot().value).toStrictEqual({
+          applicationLifecycle: 'applicationIsInForeground',
+          permissions: {},
+        });
+        expect(
+          permissionMonitorActor.getSnapshot().context.permissionsStatuses
+        ).toStrictEqual({
+          bluetooth: 'unasked',
+          microphone: 'unasked',
+        });
+
+        const permissionCheckerActor =
+          permissionMonitorActor.getSnapshot().children[
+            ActorSystemIds.permissionCheckerAndRequester
+          ];
+
+        expect(permissionCheckerActor?.getSnapshot().value).toBe(
+          'checkingPermissions'
+        );
+
+        await waitFor(permissionCheckerActor, (state) => {
+          return state.value === 'idle';
+        });
+
+        expect(permissionCheckerActor?.getSnapshot().value).toBe('idle');
+        expect(featureMachineActor?.getSnapshot().value).toStrictEqual({
+          foo: 'bluetoothDenied',
+          handlingPermissions: {},
+        });
       });
 
       describe('Edge Cases', () => {
@@ -571,7 +651,7 @@ describe('Permission Monitoring Machine', () => {
 
     await waitFor(actorRef, (state) => {
       return (
-        state.children.permissionCheckerAndRequesterMachineId.getSnapshot()
+        state.children.permissionCheckerAndRequesterMachineId!.getSnapshot()
           .value === 'idle'
       );
     });
@@ -589,12 +669,12 @@ describe('Permission Monitoring Machine', () => {
     expect(
       actorRef
         .getSnapshot()
-        .children.permissionCheckerAndRequesterMachineId.getSnapshot().value
+        .children.permissionCheckerAndRequesterMachineId!.getSnapshot().value
     ).toBe('requestingPermission');
 
     await waitFor(actorRef, (state) => {
       return (
-        state.children.permissionCheckerAndRequesterMachineId.getSnapshot()
+        state.children.permissionCheckerAndRequesterMachineId!.getSnapshot()
           .value === 'idle'
       );
     });

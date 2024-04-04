@@ -1,10 +1,4 @@
 import {
-  Permission,
-  PermissionMonitoringMachineEvents,
-  Permissions,
-  PermissionStatusMapType,
-} from './permission.types';
-import {
   AnyActorRef,
   assertEvent,
   assign,
@@ -14,11 +8,17 @@ import {
   sendTo,
   setup,
 } from 'xstate';
-import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
-import { InitialPermissionStatusMap } from './permission.fixtures';
-import { PermissionSubscriberMap } from './permission-logic.spec';
-import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
 import { ActorSystemIds } from './actorIds';
+import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
+import { PermissionSubscriberMap } from './permission-logic.spec';
+import { InitialPermissionStatusMap } from './permission.fixtures';
+import {
+  Permission,
+  PermissionMonitoringMachineEvents,
+  PermissionStatusMapType,
+  Permissions,
+} from './permission.types';
+import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
 
 export const EmptyPermissionSubscriberMap: PermissionSubscriberMap =
   Object.values(Permissions).reduce(
@@ -148,7 +148,6 @@ export const permissionMonitoringMachine = setup({
       }),
     },
   },
-  // entry: raise({ type: 'subscribeToPermissionStatuses', permissions: [] }),
   states: {
     applicationLifecycle: {
       on: {
@@ -162,6 +161,8 @@ export const permissionMonitoringMachine = setup({
       },
       initial: 'applicationIsInForeground',
       invoke: {
+        id: ActorSystemIds.lifecycleReporting,
+        systemId: ActorSystemIds.lifecycleReporting,
         src: 'applicationLifecycleReportingMachine',
       },
 

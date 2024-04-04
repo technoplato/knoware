@@ -23,7 +23,6 @@ export type ApplicationStateChangeHandler = (
 export const stubSubscribeToApplicationStateChanges = (
   handleApplicationStateChange: ApplicationStateChangeHandler
 ) => {
-  console.log('subscribed to fake handler');
   handleApplicationStateChange('applicationForegrounded');
 
   return () => {

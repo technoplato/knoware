@@ -65,6 +65,7 @@ export const permissionCheckerAndRequesterMachine = setup({
       const result =
         // TODO how can i make this implementation more injectable and still ergnomic
         await unimplementedPermissionMachineActions.checkAllPermissions();
+      console.log({ result });
 
       return result;
     }),
@@ -154,7 +155,9 @@ export const permissionCheckerAndRequesterMachine = setup({
     checkingPermissions: {
       invoke: {
         src: 'checkAllPermissions',
-        onError: {},
+        onError: {
+          actions: log('an error occurred checking permissions'),
+        },
         onDone: {
           target: 'idle',
           actions: [
