@@ -29,6 +29,7 @@ import {
   permissionMonitoringMachine,
 } from './permissionMonitor.machine';
 
+const forever = 2 ^ (28 - 1);
 const countingMachineThatNeedsPermissionAt3 = setup({
   types: {
     context: {} as { count: number; permissionStatus: PermissionStatus },
@@ -396,6 +397,19 @@ describe('Permission Monitoring Machine', () => {
         log('subscribe to status updates'),
       ],
       on: {
+        requestPermission: {
+          actions: [
+            sendTo(
+              ({ system }) => {
+                return system.get(ActorSystemIds.permissionCheckerAndRequester);
+              },
+              ({ event }) => ({
+                type: 'triggerPermissionRequest',
+                permission: event.permission,
+              })
+            ),
+          ],
+        },
         permissionStatusChanged: {
           description:
             'Whenever the Permission Monitoring machine reports that a permission status has changed, we receive this event and can process and share with our siblings.',
@@ -426,11 +440,11 @@ describe('Permission Monitoring Machine', () => {
                   console.log('its granted yaya');
                   return {
                     // dynamic
-                    type: 'permission.bluetooth.granted',
+                    type: 'permission.granted.bluetooth',
                   };
                 } else {
                   return {
-                    type: 'permission.bluetooth.denied',
+                    type: 'permission.denied.bluetooth',
                   };
                 }
               },
@@ -448,6 +462,17 @@ describe('Permission Monitoring Machine', () => {
       id: 'someFeatureMachineId',
       type: 'parallel',
       states: {
+        logging: {
+          on: {
+            '*': {
+              actions: [
+                ({ event }) => {
+                  console.log('logging::::' + JSON.stringify(event, null, 2));
+                },
+              ],
+            },
+          },
+        },
         foo: {
           initial: 'start',
           states: {
@@ -459,17 +484,43 @@ describe('Permission Monitoring Machine', () => {
               on: {
                 'permission.granted.bluetooth': { target: 'bluetoothGranted' },
                 'permission.denied.bluetooth': { target: 'bluetoothDenied' },
+                'user.didTapBluetoothRequestPermission': {
+                  actions: raise({
+                    type: 'permissionWasRequested',
+                    permission: Permissions.bluetooth,
+                  }),
+                },
               },
             },
             bluetoothGranted: {
               type: 'final',
             },
             bluetoothDenied: {
-              type: 'final',
+              on: {
+                'permission.granted.bluetooth': { target: 'bluetoothGranted' },
+                'user.didTapBluetoothRequestPermission': {
+                  actions: raise({
+                    type: 'permissionWasRequested',
+                    permission: Permissions.bluetooth,
+                  }),
+                },
+              },
             },
           },
         },
         handlingPermissions: {
+          on: {
+            permissionWasRequested: {
+              actions: [
+                sendTo('permissionHandler', ({ event }) => {
+                  return {
+                    type: 'requestPermission',
+                    permission: event.permission,
+                  };
+                }),
+              ],
+            },
+          },
           invoke: {
             id: 'permissionHandler',
             src: 'permissionReportingMachine',
@@ -531,12 +582,8 @@ describe('Permission Monitoring Machine', () => {
         expect(featureMachineActor?.getSnapshot().value).toStrictEqual({
           foo: 'waitingForPermission',
           handlingPermissions: {},
+          logging: {},
         });
-
-        // featureMachineActor?.send({
-        //   type: 'sendPermissionRequest',
-        //   permission: Permissions.bluetooth,
-        // });
 
         expect(permissionMonitorActor.getSnapshot().value).toStrictEqual({
           applicationLifecycle: 'applicationIsInForeground',
@@ -561,12 +608,41 @@ describe('Permission Monitoring Machine', () => {
         await waitFor(permissionCheckerActor, (state) => {
           return state.value === 'idle';
         });
+        expect(
+          permissionMonitorActor.getSnapshot().context.permissionsStatuses[
+            Permissions.bluetooth
+          ]
+        ).toBe('denied');
 
         expect(permissionCheckerActor?.getSnapshot().value).toBe('idle');
         expect(featureMachineActor?.getSnapshot().value).toStrictEqual({
           foo: 'bluetoothDenied',
           handlingPermissions: {},
+          logging: {},
         });
+
+        // await waitFor(featureMachineActor, (state) => {
+        //   return state.value === 'bluetoothDenied';
+        // });
+
+        featureMachineActor?.send({
+          type: 'user.didTapBluetoothRequestPermission',
+          permission: Permissions.bluetooth,
+        });
+
+        expect(permissionCheckerActor?.getSnapshot().value).toBe(
+          'requestingPermission'
+        );
+
+        await waitFor(permissionCheckerActor, (state) => {
+          return state.value === 'idle';
+        });
+        expect(featureMachineActor?.getSnapshot().value).toStrictEqual({
+          foo: 'bluetoothGranted',
+          handlingPermissions: {},
+          logging: {},
+        });
+        // await new Promise((resolve) => setTimeout(resolve, forever));
       });
 
       describe('Edge Cases', () => {

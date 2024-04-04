@@ -58,6 +58,8 @@ export const permissionMonitoringMachine = setup({
     }),
     broadcastPermissionsToListeners: enqueueActions(
       ({ context, event, enqueue }) => {
+        // TODO this should only send permission updates for the recently modified permissions
+        // and is currently sending updates to all permissions to everyone
         Object.keys(context.permissionSubscribers).forEach((permission) => {
           context.permissionSubscribers[permission].forEach(
             (actorRef: AnyActorRef) => {
@@ -194,8 +196,10 @@ export const permissionMonitoringMachine = setup({
           ],
         },
         permissionRequestCompleted: {
-          actions: 'assignPermissionRequestResultToContext',
-          // TODO 'broadcastPermissionsToListeners',
+          actions: [
+            'assignPermissionRequestResultToContext',
+            'broadcastPermissionsToListeners',
+          ],
         },
       },
       invoke: {
