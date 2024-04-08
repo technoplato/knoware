@@ -26,8 +26,6 @@ export const permissionReportingMachine = setup({
         const actorRef: AnyActorRef = system.get(
           ActorSystemIds.permissionMonitoring
         );
-        console.log({ actorRef });
-        console.log('hi');
         return actorRef;
       },
       ({ self, context }) => ({

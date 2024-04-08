@@ -41,6 +41,7 @@ describe('Counting Machine That Needs Permission At 3', () => {
       // }).inspect,
     });
     applicationActor.start();
+    applicationActor.getSnapshot();
 
     const permissionMonitorActor = applicationActor.system.get(
       ActorSystemIds.permissionMonitoring
@@ -53,12 +54,12 @@ describe('Counting Machine That Needs Permission At 3', () => {
     expect(permissionMonitorActor).toBeDefined();
     expect(countingPermissionReporter).toBeDefined();
 
-    console.log(countingPermissionReporter.getSnapshot().value);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log(countingPermissionReporter.getSnapshot().value);
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const state = permissionMonitorActor.getSnapshot();
-    console.log({ v: state.context.permissionSubscribers });
+    console.log({
+      v: state.context.permissionSubscribers[Permissions.bluetooth][0].id,
+    });
     expect(
       state.context.permissionSubscribers[Permissions.bluetooth]?.length
     ).toEqual(1);
@@ -96,19 +97,26 @@ describe('Counting Machine That Needs Permission At 3', () => {
       permission: Permissions.bluetooth,
     });
 
-    // await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
-    //
-    // expect(countingActor.getSnapshot().context.permissionStatus).toBe(PermissionStatuses.granted);
-    //
-    // // Send 'count.inc' events to increment the count to 5
-    // countingActor.send({ type: 'count.inc' });
-    // countingActor.send({ type: 'count.inc' });
-    //
-    // expect(countingActor.getSnapshot().context.count).toBe(5);
-    // expect(countingActor.getSnapshot().value).toStrictEqual({
-    //   counting: 'finished',
-    //   handlingPermissions: 'idle',
-    // });
+    await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
+    await waitFor(countingActor, (state) => state.value.counting === 'enabled');
+
+    expect(countingActor.getSnapshot().value).toStrictEqual({
+      counting: 'enabled',
+      handlingPermissions: {},
+    });
+
+    expect(countingActor.getSnapshot().context.permissionStatus).toBe(
+      PermissionStatuses.granted
+    );
+
+    // Send 'count.inc' events to increment the count to 5
+    countingActor.send({ type: 'count.inc' });
+    countingActor.send({ type: 'count.inc' });
+
+    expect(countingActor.getSnapshot().context.count).toBe(5);
+    expect(countingActor.getSnapshot().value.counting).toStrictEqual(
+      'finished'
+    );
     // await new Promise((resolve) => setTimeout(resolve, vLongTime));
   });
   // vLongTime // prettyMuchForever

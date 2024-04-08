@@ -23,8 +23,6 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
     permissionStatus: PermissionStatuses.unasked,
   },
 
-  entry: log('Counting machine started'),
-
   states: {
     counting: {
       initial: 'enabled',
@@ -33,7 +31,13 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
           always: [
             {
               target: 'disabled',
-              guard: ({ context }) => context.count >= 3,
+              guard: ({ context }) =>
+                context.count >= 3 &&
+                context.permissionStatus !== PermissionStatuses.granted,
+            },
+            {
+              target: 'finished',
+              guard: ({ context }) => context.count >= 5,
             },
           ],
           on: {
@@ -47,7 +51,13 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
         disabled: {
           id: 'countingDisabled',
           on: {
-            'permission.granted.bluetooth': { target: 'enabled' },
+            'permission.granted.bluetooth': {
+              target: 'enabled',
+              actions: [
+                () => console.log('permission granted'),
+                assign({ permissionStatus: PermissionStatuses.granted }),
+              ],
+            },
             'permission.denied.bluetooth': { target: 'bluetoothDenied' },
             'user.didTapBluetoothRequestPermission': {
               actions: raise({
@@ -69,6 +79,9 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
               }),
             },
           },
+        },
+        finished: {
+          type: 'final',
         },
       },
     },
