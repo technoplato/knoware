@@ -1,4 +1,4 @@
-import { assign, raise, sendTo, setup } from 'xstate';
+import { assign, log, raise, sendTo, setup } from 'xstate';
 import {
   Permissions,
   PermissionStatus,
@@ -22,6 +22,8 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
     count: 0,
     permissionStatus: PermissionStatuses.unasked,
   },
+
+  entry: log('Counting machine started'),
 
   states: {
     counting: {
@@ -87,6 +89,7 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
       },
       invoke: {
         id: 'permissionHandler',
+        systemId: 'countingPermissionReporter',
         src: 'permissionReportingMachine',
         input: ({ self }) => ({
           permissions: [Permissions.bluetooth],

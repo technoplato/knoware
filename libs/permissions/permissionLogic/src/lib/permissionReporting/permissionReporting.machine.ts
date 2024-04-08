@@ -26,6 +26,8 @@ export const permissionReportingMachine = setup({
         const actorRef: AnyActorRef = system.get(
           ActorSystemIds.permissionMonitoring
         );
+        console.log({ actorRef });
+        console.log('hi');
         return actorRef;
       },
       ({ self, context }) => ({
@@ -55,10 +57,18 @@ export const permissionReportingMachine = setup({
     permissions: input.permissions,
     parent: input.parent,
   }),
-  entry: [
-    'sendSubscriptionRequestForStatusUpdates',
-    log('subscribe to status updates'),
-  ],
+  initial: 'waiting',
+  states: {
+    waiting: {
+      after: {
+        /* This is required due to the way actor systems are initialized. Without this delay, the lower level actor (us)
+         * will send out the subscription request before the top level permission monitoring actor is ready to receive it.*/
+        0: {
+          actions: ['sendSubscriptionRequestForStatusUpdates'],
+        },
+      },
+    },
+  },
   on: {
     requestPermission: {
       actions: [

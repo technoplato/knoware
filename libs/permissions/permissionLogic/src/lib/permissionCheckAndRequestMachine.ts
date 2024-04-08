@@ -154,6 +154,7 @@ export const permissionCheckerAndRequesterMachine = setup({
 
     checkingPermissions: {
       invoke: {
+        id: 'checkAllPermissionsId',
         src: 'checkAllPermissions',
         onError: {
           actions: log('an error occurred checking permissions'),

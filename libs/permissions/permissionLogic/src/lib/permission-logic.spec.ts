@@ -27,10 +27,18 @@ import { someFeatureMachine } from './features/someFeature/someFeature.machine';
 import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
 import { applicationMachine } from './application/application.machine';
 
+const vLongTime = 1000000000;
+
 describe('Counting Machine That Needs Permission At 3', () => {
   it('should increment count to 3, ask for permission, and continue counting to 5 when permission is granted', async () => {
     const applicationActor = createActor(applicationMachine, {
       systemId: ActorSystemIds.application,
+      // inspect: createSkyInspector({
+      //   // @ts-expect-error
+      //   WebSocket: WebSocket,
+      //   inspectorType: 'node',
+      //   autoStart: true,
+      // }).inspect,
     });
     applicationActor.start();
 
@@ -38,71 +46,55 @@ describe('Counting Machine That Needs Permission At 3', () => {
       ActorSystemIds.permissionMonitoring
     );
 
-    // const permissionMonitorActor = applicationActor
-    //   .getSnapshot()
-    //   .children[ActorSystemIds.systemManagement].getSnapshot().children[
-    //   ActorSystemIds.permissionMonitoring
-    // ];
+    const countingPermissionReporter = applicationActor.system.get(
+      'countingPermissionReporter'
+    );
 
-    // const permissionMonitorActor = applicationActor.system
-    //   .get(ActorSystemIds.systemManagement)
-    //   .getSnapshot().children[ActorSystemIds.permissionMonitoring];
     expect(permissionMonitorActor).toBeDefined();
+    expect(countingPermissionReporter).toBeDefined();
 
-    // const permissionMonitorActor = createActor(
-    //   permissionMonitoringMachine,
-    //   // permissionMonitoringMachine.provide({
-    //   //   actors: {
-    //   //     features: countingMachineThatNeedsPermissionAt3,
-    //   //   },
-    //   // }),
-    //   {
-    //     systemId: ActorSystemIds.permissionMonitoring,
-    //   }
-    // ).start();
+    console.log(countingPermissionReporter.getSnapshot().value);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    console.log(countingPermissionReporter.getSnapshot().value);
 
     const state = permissionMonitorActor.getSnapshot();
-    console.log({ v: state.context });
-    // expect(
-    //   state.context.permissionSubscribers[Permissions.bluetooth].length
-    // ).toEqual(1);
+    console.log({ v: state.context.permissionSubscribers });
+    expect(
+      state.context.permissionSubscribers[Permissions.bluetooth]?.length
+    ).toEqual(1);
 
-    // const featureMachineActor =
-    //   permissionMonitorActor.getSnapshot().children.featuresMachineId;
-    // expect(featureMachineActor?.getSnapshot().value).toStrictEqual({
-    //   counting: 'enabled',
-    //   handlingPermissions: {},
-    // });
+    const countingActor = applicationActor.system.get(ActorSystemIds.counting);
+    expect(countingActor?.getSnapshot().value).toStrictEqual({
+      counting: 'enabled',
+      handlingPermissions: {},
+    });
 
-    // const countingActor = createActor(
-    //   countingMachineThatNeedsPermissionAt3,
-    //   {}
-    // ).start();
+    countingActor.send({ type: 'count.inc' });
+    countingActor.send({ type: 'count.inc' });
+    countingActor.send({ type: 'count.inc' });
+    expect(countingActor.getSnapshot().context.count).toBe(3);
+    expect(countingActor.getSnapshot().value).toStrictEqual({
+      counting: 'disabled',
+      handlingPermissions: {},
+    });
 
-    // countingActor.send({ type: 'count.inc' });
-    // countingActor.send({ type: 'count.inc' });
-    // countingActor.send({ type: 'count.inc' });
-    // expect(countingActor.getSnapshot().context.count).toBe(3);
-    // expect(countingActor.getSnapshot().value).toStrictEqual({
-    //   counting: 'disabled',
-    //   handlingPermissions: {},
-    // });
-    //
-    // countingActor.send({ type: 'count.inc' });
-    // expect(countingActor.getSnapshot().context.count).toBe(3);
-    // expect(countingActor.getSnapshot().value).toStrictEqual({
-    //   counting: 'disabled',
-    //   handlingPermissions: {},
-    // });
+    countingActor.send({ type: 'count.inc' });
+    expect(countingActor.getSnapshot().context.count).toBe(3);
+    expect(countingActor.getSnapshot().value).toStrictEqual({
+      counting: 'disabled',
+      handlingPermissions: {},
+    });
 
     // Configure the permission actor to grant permission
-    // const permissionCheckerActor =
-    //   countingActor.getSnapshot().children
-    //     .permissionCheckerAndRequesterMachineId!;
-    // permissionCheckerActor.send({
-    //   type: 'triggerPermissionRequest',
-    //   permission: Permissions.bluetooth,
-    // });
+    const permissionCheckerActor = applicationActor.system.get(
+      ActorSystemIds.permissionCheckerAndRequester
+    );
+
+    // TODO, this should be handled by sending an event to the countingActor
+    permissionCheckerActor.send({
+      type: 'triggerPermissionRequest',
+      permission: Permissions.bluetooth,
+    });
 
     // await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
     //
@@ -117,7 +109,9 @@ describe('Counting Machine That Needs Permission At 3', () => {
     //   counting: 'finished',
     //   handlingPermissions: 'idle',
     // });
-  }); // prettyMuchForever
+    // await new Promise((resolve) => setTimeout(resolve, vLongTime));
+  });
+  // vLongTime // prettyMuchForever
 
   //   it('should start in idle state', async () => {
   //     const countingActor = createActor(

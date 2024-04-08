@@ -59,14 +59,14 @@ export const someFeatureMachine = setup({
           ],
         },
       },
-      invoke: {
-        id: 'permissionHandler',
-        src: 'permissionReportingMachine',
-        input: ({ self }) => ({
-          permissions: [Permissions.bluetooth],
-          parent: self,
-        }),
-      },
+      // invoke: {
+      //   id: 'permissionHandler',
+      //   src: 'permissionReportingMachine',
+      //   input: ({ self }) => ({
+      //     permissions: [Permissions.bluetooth],
+      //     parent: self,
+      //   }),
+      // },
     },
   },
 });
