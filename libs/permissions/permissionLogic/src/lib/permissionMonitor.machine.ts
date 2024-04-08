@@ -8,7 +8,7 @@ import {
   sendTo,
   setup,
 } from 'xstate';
-import { ActorSystemIds } from './actorIds';
+import { ActorSystemIds } from './application/actorIds';
 import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
 import { PermissionSubscriberMap } from './permission-logic.spec';
 import { InitialPermissionStatusMap } from './permission.fixtures';
@@ -19,6 +19,8 @@ import {
   Permissions,
 } from './permission.types';
 import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
+import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
+import { someFeatureMachine } from './features/someFeature/someFeature.machine';
 
 export const EmptyPermissionSubscriberMap: PermissionSubscriberMap =
   Object.values(Permissions).reduce(
