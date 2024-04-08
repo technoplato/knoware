@@ -10,13 +10,13 @@ import {
 } from 'xstate';
 import { ActorSystemIds } from './application/actorIds';
 import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
-import { PermissionSubscriberMap } from './permission-logic.spec';
 import { InitialPermissionStatusMap } from './permission.fixtures';
 import {
   Permission,
   PermissionMonitoringMachineEvents,
   PermissionStatusMapType,
   Permissions,
+  PermissionSubscriberMap,
 } from './permission.types';
 import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
 import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
@@ -41,14 +41,13 @@ export const permissionMonitoringMachine = setup({
     children: {
       [ActorSystemIds.permissionCheckerAndRequester]: 'permissionCheckerAndRequesterMachine';
       [ActorSystemIds.lifecycleReporting]: 'applicationLifecycleReportingMachine';
-      [ActorSystemIds.features]: 'features';
+      // [ActorSystemIds.features]: 'features';
     };
   },
   actors: {
     applicationLifecycleReportingMachine:
       stubApplicationLifecycleReportingActorLogic,
     permissionCheckerAndRequesterMachine,
-    features: setup({}).createMachine({}),
   },
 
   actions: {
@@ -104,16 +103,6 @@ export const permissionMonitoringMachine = setup({
   /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O13fJhXKhgeiArq6Ple0CDGzJVwq2sI6KeDzrcMQjz1zzYkVOGJKvsZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2DzLtwIpdwgPJAOJsmTqkFMTFdhcXj8MAz-kEcFDeGiqFRNdnzf+BUhlXYhaw8H8JR2WJXFRJNDSnUgqlvCR7zKJ8ENEIoJAASVgLCpFkeRFGUF8qzMSxbGVb9fw3eEAJ3CwPC-KIlQcJEbFCeN4lgnJ4JvTCWBQx8BHQ6pijw+omhaYiPUrOdq0sVwnGXH8NWJBwHGJCVXEA4VlnUNwnC8RcYy3C8jh4qkszNekSLksiEH2GF-E8fZ3GxSNAJlYhWysCDwkhXZ9yHNIgA */
   id: ActorSystemIds.permissionMonitoring,
   type: 'parallel',
-
-  // TODO: this should live at the top level of the application, not here
-  // https://jabraenhance.atlassian.net/browse/JES-3817
-  invoke: [
-    {
-      src: 'features',
-      systemId: ActorSystemIds.features,
-      id: ActorSystemIds.features,
-    },
-  ],
 
   context: {
     permissionsStatuses: InitialPermissionStatusMap,

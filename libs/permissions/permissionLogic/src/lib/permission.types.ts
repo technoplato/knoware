@@ -58,3 +58,6 @@ export type PermissionMachineEvents =
       type: 'triggerPermissionRequest';
       permission: Permission;
     };
+
+export type PermissionSubscribers = Array<AnyActorRef>;
+export type PermissionSubscriberMap = Record<Permission, PermissionSubscribers>;

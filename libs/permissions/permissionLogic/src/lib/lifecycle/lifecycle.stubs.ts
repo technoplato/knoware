@@ -15,6 +15,7 @@ export const stubApplicationLifecycleReportingActorLogic =
      */
     const unsubscribeApplicationStateListeners =
       stubSubscribeToApplicationStateChanges((event) => {
+        console.log({ event });
         switch (event) {
           case 'applicationForegrounded':
             sendBack({ type: 'applicationForegrounded' });
