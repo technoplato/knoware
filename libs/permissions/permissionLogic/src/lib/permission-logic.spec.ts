@@ -91,14 +91,9 @@ describe('Counting Machine That Needs Permission At 3', () => {
       ActorSystemIds.permissionCheckerAndRequester
     );
 
-    // TODO, this should be handled by sending an event to the countingActor
-    permissionCheckerActor.send({
-      type: 'triggerPermissionRequest',
-      permission: Permissions.bluetooth,
-    });
+    countingActor.send({ type: 'user.didTapBluetoothRequestPermission' });
 
     await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
-    await waitFor(countingActor, (state) => state.value.counting === 'enabled');
 
     expect(countingActor.getSnapshot().value).toStrictEqual({
       counting: 'enabled',
