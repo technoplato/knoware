@@ -104,6 +104,7 @@ export const permissionMonitoringMachine = setup({
   type: 'parallel',
 
   // TODO: this should live at the top level of the application, not here
+  // https://jabraenhance.atlassian.net/browse/JES-3817
   invoke: [
     {
       src: 'features',
