@@ -17,10 +17,12 @@ export const applicationMachine = setup({
 }).createMachine({
   invoke: [
     {
+      id: ActorSystemIds.features,
       systemId: ActorSystemIds.features,
       src: 'featuresMachine',
     },
     {
+      id: ActorSystemIds.systemManagement,
       systemId: ActorSystemIds.systemManagement,
       src: 'topLevelSystemStuff',
     },

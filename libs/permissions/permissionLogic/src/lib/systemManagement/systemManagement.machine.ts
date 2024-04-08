@@ -14,6 +14,7 @@ export const systemManagementMachine = setup({
 }).createMachine({
   invoke: [
     {
+      id: ActorSystemIds.permissionMonitoring,
       systemId: ActorSystemIds.permissionMonitoring,
       src: 'permissionMonitoringMachine',
     },

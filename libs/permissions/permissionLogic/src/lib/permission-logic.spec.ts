@@ -25,19 +25,38 @@ import {
 } from './permissionMonitor.machine';
 import { someFeatureMachine } from './features/someFeature/someFeature.machine';
 import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
+import { applicationMachine } from './application/application.machine';
 
 describe('Counting Machine That Needs Permission At 3', () => {
   it('should increment count to 3, ask for permission, and continue counting to 5 when permission is granted', async () => {
-    const permissionMonitorActor = createActor(
-      permissionMonitoringMachine.provide({
-        actors: {
-          features: countingMachineThatNeedsPermissionAt3,
-        },
-      }),
-      {
-        systemId: ActorSystemIds.permissionMonitoring,
-      }
-    ).start();
+    const applicationActor = createActor(applicationMachine, {
+      systemId: ActorSystemIds.application,
+    });
+
+    // const permissionMonitorActor = applicationActor.system.get(ActorSystemIds.permissionMonitoring)
+
+    // const permissionMonitorActor = applicationActor
+    //   .getSnapshot()
+    //   .children[ActorSystemIds.systemManagement].getSnapshot().children[
+    //   ActorSystemIds.permissionMonitoring
+    // ];
+
+    const permissionMonitorActor = applicationActor.system
+      .get(ActorSystemIds.systemManagement)
+      .getSnapshot().children[ActorSystemIds.permissionMonitoring];
+
+    console.log({ permissionMonitorActor });
+    // const permissionMonitorActor = createActor(
+    //   permissionMonitoringMachine,
+    //   // permissionMonitoringMachine.provide({
+    //   //   actors: {
+    //   //     features: countingMachineThatNeedsPermissionAt3,
+    //   //   },
+    //   // }),
+    //   {
+    //     systemId: ActorSystemIds.permissionMonitoring,
+    //   }
+    // ).start();
 
     const state = permissionMonitorActor.getSnapshot();
     expect(
