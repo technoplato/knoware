@@ -1,4 +1,45 @@
-it('works', () => {});
+import { createActor, createMachine } from 'xstate';
+
+it('meta', () => {
+  const feedbackMachine = createMachine({
+    id: 'feedback',
+    initial: 'prompt',
+    meta: {
+      title: 'Feedback',
+    },
+    states: {
+      prompt: {
+        meta: {
+          content: 'How was your experience?',
+        },
+      },
+      form: {
+        meta: {
+          content: 'Please fill out the form below.',
+        },
+      },
+      thanks: {
+        meta: {
+          content: 'Thank you for your feedback!',
+        },
+      },
+      closed: {},
+    },
+  });
+
+  const feedbackActor = createActor(feedbackMachine).start();
+
+  console.log(feedbackActor.getSnapshot().getMeta());
+  // logs the object:
+  // {
+  //   feedback: {
+  //     title: 'Feedback',
+  //   },
+  //   'feedback.prompt': {
+  //     content: 'How was your experience?',
+  //   }
+  // }
+});
 // import {
 //   ActorRef,
 //   Snapshot,
