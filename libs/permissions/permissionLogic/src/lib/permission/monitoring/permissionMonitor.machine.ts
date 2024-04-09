@@ -1,4 +1,5 @@
 import {
+  ActorRefFrom,
   AnyActorRef,
   assertEvent,
   assign,
@@ -7,32 +8,21 @@ import {
   raise,
   sendTo,
   setup,
+  SnapshotFrom,
 } from 'xstate';
 import { ActorSystemIds } from '../../application/actorIds';
 import { stubApplicationLifecycleReportingActorLogic } from '../../lifecycle/lifecycle.stubs';
 import { InitialPermissionStatusMap } from '../../permission.fixtures';
-import {
-  Permission,
-  Permissions,
-  PermissionStatusMapType,
-} from '../../permission.types';
+import { Permission } from '../../permission.types';
 import { permissionCheckerAndRequesterMachine } from '../checkAndRequest/permissionCheckAndRequestMachine';
 import {
   PermissionMonitoringMachineEvents,
   PermissionSubscriberMap,
 } from './permissionMonitor.types';
-
-export const EmptyPermissionSubscriberMap: PermissionSubscriberMap =
-  Object.values(Permissions).reduce(
-    (acc, permission) => ({
-      ...acc,
-    }),
-    {} as PermissionSubscriberMap
-  );
-export type PermissionsMonitoringMachineContext = {
-  permissionsStatuses: PermissionStatusMapType;
-  permissionSubscribers: PermissionSubscriberMap;
-};
+import {
+  EmptyPermissionSubscriberMap,
+  PermissionsMonitoringMachineContext,
+} from './permissionMonitor.fixtures';
 
 export const permissionMonitoringMachine = setup({
   types: {} as {
@@ -41,7 +31,6 @@ export const permissionMonitoringMachine = setup({
     children: {
       [ActorSystemIds.permissionCheckerAndRequester]: 'permissionCheckerAndRequesterMachine';
       [ActorSystemIds.lifecycleReporting]: 'applicationLifecycleReportingMachine';
-      // [ActorSystemIds.features]: 'features';
     };
   },
   actors: {
@@ -205,3 +194,13 @@ export const permissionMonitoringMachine = setup({
     },
   },
 });
+
+export type PermissionMonitorMachine = typeof permissionMonitoringMachine;
+export type PermissionMonitorActorRef = ActorRefFrom<
+  typeof permissionMonitoringMachine
+>;
+export type PermissionMonitoringSnapshot = SnapshotFrom<
+  typeof permissionMonitoringMachine
+>;
+const a: PermissionMonitorActorRef = null as any;
+const b: PermissionMonitoringSnapshot = null as any;

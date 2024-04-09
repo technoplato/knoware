@@ -15,5 +15,6 @@ export const ActorSystemIds = {
   features: 'featuresMachineId',
   // Features
   counting: 'countingMachineId',
+  /*not working atm*/ // countingPermissionReporter: 'countingPermissionReporterMachineId',
   someFeature: 'someFeatureMachineId',
 } as const;

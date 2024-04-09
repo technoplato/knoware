@@ -1,4 +1,5 @@
 import {
+  ActorRefFrom,
   AnyActorRef,
   AnyEventObject,
   enqueueActions,
@@ -34,7 +35,6 @@ export const permissionReportingMachine = setup({
         self,
       })
     ),
-    // satisfies /*TODO type these events to the receiving machine event type*/ AnyEventObject);
     checkedSendParent: enqueueActions(
       ({ context, enqueue }, event: AnyEventObject) => {
         if (!context.parent) {
@@ -122,3 +122,7 @@ export const permissionReportingMachine = setup({
     },
   },
 });
+
+export type PermissionReportingActorRef = ActorRefFrom<
+  typeof permissionReportingMachine
+>;

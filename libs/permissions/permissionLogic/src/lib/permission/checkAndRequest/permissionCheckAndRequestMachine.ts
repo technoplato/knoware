@@ -1,8 +1,6 @@
 import {
   ActorRef,
-  assertEvent,
   assign,
-  createMachine,
   enqueueActions,
   fromPromise,
   log,
@@ -17,7 +15,6 @@ import {
   PermissionStatus,
   PermissionStatusMapType,
 } from '../../permission.types';
-import { PermissionMachineEvents } from './permissionCheckAndRequest.types';
 import { PermissionMonitoringMachineEvents } from '../monitoring/permissionMonitor.types';
 
 export const permissionCheckerAndRequesterMachine = setup({
@@ -26,8 +23,7 @@ export const permissionCheckerAndRequesterMachine = setup({
       parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
       statuses: PermissionStatusMapType;
     },
-    // events: {} as PermissionMachineEvents,
-    // events : {} as PermissionCheckerAndRequesterMachineEvents,
+
     input: {} as {
       parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
     },
@@ -48,10 +44,16 @@ export const permissionCheckerAndRequesterMachine = setup({
     ),
 
     savePermissionRequestOutput: assign({
-      statuses: ({ context, event }) => {
+      statuses: (
+        { context },
+        {
+          permission,
+          status,
+        }: { permission: Permission; status: PermissionStatus }
+      ) => {
         return {
           ...context.statuses,
-          [event.output.permission]: event.output.status,
+          [permission]: status,
         };
       },
     }),
@@ -129,7 +131,13 @@ export const permissionCheckerAndRequesterMachine = setup({
         onDone: {
           target: 'idle',
           actions: [
-            'savePermissionRequestOutput',
+            {
+              type: 'savePermissionRequestOutput',
+              params: ({ event }) => {
+                const { permission, status } = event.output;
+                return { permission, status };
+              },
+            },
             {
               /**
                * I tried putting this action in the actions in setup as reportPermissionRequestResult
@@ -164,7 +172,6 @@ export const permissionCheckerAndRequesterMachine = setup({
         onDone: {
           target: 'idle',
           actions: [
-            log('child on done checkingPermissions'),
             {
               type: 'savePermissionCheckResult',
               params: ({ event }) => ({

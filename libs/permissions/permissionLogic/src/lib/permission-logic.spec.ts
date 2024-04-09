@@ -4,6 +4,7 @@ import { ActorSystemIds } from './application/actorIds';
 import { createSkyInspector } from '@statelyai/inspect';
 import { WebSocket } from 'ws';
 import {
+  ActorSystem,
   AnyActorRef,
   createActor,
   InspectionEvent,
@@ -19,99 +20,128 @@ import {
 } from './permission.types';
 import { permissionCheckerAndRequesterMachine } from './permission/checkAndRequest/permissionCheckAndRequestMachine';
 import {
-  EmptyPermissionSubscriberMap,
+  PermissionMonitorActorRef,
   permissionMonitoringMachine,
+  PermissionMonitoringSnapshot,
 } from './permission/monitoring/permissionMonitor.machine';
 import { someFeatureMachine } from './features/someFeature/someFeature.machine';
 import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
 import { applicationMachine } from './application/application.machine';
+import { PermissionReportingActorRef } from './permission/reporting/permissionReporting.machine';
 
 const vLongTime = 1000000000;
 
+type JESActorSystem = ActorSystem<{
+  actors: {
+    [ActorSystemIds.permissionMonitoring]: PermissionMonitorActorRef;
+    // [ActorSystemIds.countingPermissionReporter]: PermissionReportingActorRef;
+  };
+}>;
+
 describe('Counting Machine That Needs Permission At 3', () => {
-  it('should increment count to 3, ask for permission, and continue counting to 5 when permission is granted', async () => {
-    const applicationActor = createActor(applicationMachine, {
-      systemId: ActorSystemIds.application,
-      // inspect: createSkyInspector({
-      //   // @ts-expect-error
-      //   WebSocket: WebSocket,
-      //   inspectorType: 'node',
-      //   autoStart: true,
-      // }).inspect,
-    });
-    applicationActor.start();
+  it(
+    'should increment count to 3, ask for permission, and continue counting to 5 when permission is granted',
+    async () => {
+      const applicationActor = createActor(applicationMachine, {
+        systemId: ActorSystemIds.application,
+        inspect: createSkyInspector({
+          // @ts-expect-error
+          WebSocket: WebSocket,
+          inspectorType: 'node',
+          autoStart: true,
+        }).inspect,
+      });
+      applicationActor.start();
+      const actorSystem: JESActorSystem = applicationActor.system;
 
-    const permissionMonitorActor = applicationActor.system.get(
-      ActorSystemIds.permissionMonitoring
-    );
+      const permissionMonitorActor = actorSystem.get(
+        ActorSystemIds.permissionMonitoring
+      );
+      // const countingPermissionReporter = actorSystem.get(
+      //   ActorSystemIds.countingPermissionReporter
+      // );
+      const countingPermissionReporter = applicationActor.system.get(
+        'permissionReportingCounting'
+      );
 
-    const countingPermissionReporter = applicationActor.system.get(
-      'countingPermissionReporter'
-    );
+      // @ts-expect-error this means the actor system type is working as expected
+      permissionMonitorActor.getSnapshot().value === 'foo';
+      // @ts-expect-error this means the actor system type is working as expected
+      permissionMonitorActor.getSnapshot().context === 'foo';
 
-    expect(permissionMonitorActor).toBeDefined();
-    expect(countingPermissionReporter).toBeDefined();
+      expect(permissionMonitorActor).toBeDefined();
+      expect(countingPermissionReporter).toBeDefined();
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+      /* Required due to a bug in the initialization of actor systems*/ await new Promise(
+        (resolve) => setTimeout(resolve, 0)
+      );
 
-    const state = permissionMonitorActor.getSnapshot();
-    console.log({
-      v: state.context.permissionSubscribers[Permissions.bluetooth][0].id,
-    });
-    expect(
-      state.context.permissionSubscribers[Permissions.bluetooth]?.length
-    ).toEqual(1);
+      const state: PermissionMonitoringSnapshot =
+        permissionMonitorActor.getSnapshot();
 
-    const countingActor = applicationActor.system.get(ActorSystemIds.counting);
-    expect(countingActor?.getSnapshot().value).toStrictEqual({
-      counting: 'enabled',
-      handlingPermissions: {},
-    });
+      console.log({
+        v: state.context.permissionSubscribers[Permissions.bluetooth].map(
+          (s) => s.id
+        ),
+      });
+      expect(
+        state.context.permissionSubscribers[Permissions.bluetooth]?.length
+      ).toEqual(2);
 
-    countingActor.send({ type: 'count.inc' });
-    countingActor.send({ type: 'count.inc' });
-    countingActor.send({ type: 'count.inc' });
-    expect(countingActor.getSnapshot().context.count).toBe(3);
-    expect(countingActor.getSnapshot().value).toStrictEqual({
-      counting: 'disabled',
-      handlingPermissions: {},
-    });
+      const countingActor = applicationActor.system.get(
+        ActorSystemIds.counting
+      );
+      expect(countingActor?.getSnapshot().value).toStrictEqual({
+        counting: 'enabled',
+        handlingPermissions: {},
+      });
 
-    countingActor.send({ type: 'count.inc' });
-    expect(countingActor.getSnapshot().context.count).toBe(3);
-    expect(countingActor.getSnapshot().value).toStrictEqual({
-      counting: 'disabled',
-      handlingPermissions: {},
-    });
+      countingActor.send({ type: 'count.inc' });
+      countingActor.send({ type: 'count.inc' });
+      countingActor.send({ type: 'count.inc' });
+      expect(countingActor.getSnapshot().context.count).toBe(3);
+      expect(countingActor.getSnapshot().value).toStrictEqual({
+        counting: 'disabled',
+        handlingPermissions: {},
+      });
 
-    // Configure the permission actor to grant permission
-    const permissionCheckerActor = applicationActor.system.get(
-      ActorSystemIds.permissionCheckerAndRequester
-    );
+      countingActor.send({ type: 'count.inc' });
+      expect(countingActor.getSnapshot().context.count).toBe(3);
+      expect(countingActor.getSnapshot().value).toStrictEqual({
+        counting: 'disabled',
+        handlingPermissions: {},
+      });
 
-    countingActor.send({ type: 'user.didTapBluetoothRequestPermission' });
+      // Configure the permission actor to grant permission
+      const permissionCheckerActor = applicationActor.system.get(
+        ActorSystemIds.permissionCheckerAndRequester
+      );
 
-    await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
+      countingActor.send({ type: 'user.didTapBluetoothRequestPermission' });
 
-    expect(countingActor.getSnapshot().value).toStrictEqual({
-      counting: 'enabled',
-      handlingPermissions: {},
-    });
+      await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
+      await new Promise((resolve) => setTimeout(resolve, vLongTime));
 
-    expect(countingActor.getSnapshot().context.permissionStatus).toBe(
-      PermissionStatuses.granted
-    );
+      expect(countingActor.getSnapshot().value).toStrictEqual({
+        counting: 'enabled',
+        handlingPermissions: {},
+      });
 
-    // Send 'count.inc' events to increment the count to 5
-    countingActor.send({ type: 'count.inc' });
-    countingActor.send({ type: 'count.inc' });
+      expect(countingActor.getSnapshot().context.permissionStatus).toBe(
+        PermissionStatuses.granted
+      );
 
-    expect(countingActor.getSnapshot().context.count).toBe(5);
-    expect(countingActor.getSnapshot().value.counting).toStrictEqual(
-      'finished'
-    );
-    // await new Promise((resolve) => setTimeout(resolve, vLongTime));
-  });
+      // Send 'count.inc' events to increment the count to 5
+      countingActor.send({ type: 'count.inc' });
+      countingActor.send({ type: 'count.inc' });
+
+      expect(countingActor.getSnapshot().context.count).toBe(5);
+      expect(countingActor.getSnapshot().value.counting).toStrictEqual(
+        'finished'
+      );
+    },
+    vLongTime
+  );
   // vLongTime // prettyMuchForever
 
   //   it('should start in idle state', async () => {
