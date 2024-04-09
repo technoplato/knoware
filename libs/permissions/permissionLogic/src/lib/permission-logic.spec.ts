@@ -41,7 +41,6 @@ describe('Counting Machine That Needs Permission At 3', () => {
       // }).inspect,
     });
     applicationActor.start();
-    applicationActor.getSnapshot();
 
     const permissionMonitorActor = applicationActor.system.get(
       ActorSystemIds.permissionMonitoring

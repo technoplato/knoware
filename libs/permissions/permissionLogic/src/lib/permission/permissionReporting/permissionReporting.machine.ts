@@ -6,8 +6,8 @@ import {
   sendTo,
   setup,
 } from 'xstate';
-import { Permission, Permissions } from '../permission.types';
-import { ActorSystemIds } from '../application/actorIds';
+import { Permission, Permissions } from '../../permission.types';
+import { ActorSystemIds } from '../../application/actorIds';
 
 export const permissionReportingMachine = setup({
   types: {

@@ -1,5 +1,5 @@
 import { raise, sendTo, setup } from 'xstate';
-import { permissionReportingMachine } from '../../permissionReporting/permissionReporting.machine';
+import { permissionReportingMachine } from '../../permission/permissionReporting/permissionReporting.machine';
 import { Permissions } from '../../permission.types';
 
 export const someFeatureMachine = setup({
