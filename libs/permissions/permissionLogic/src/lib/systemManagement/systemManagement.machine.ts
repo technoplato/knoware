@@ -1,6 +1,6 @@
 import { createMachine, setup } from 'xstate';
 import { ActorSystemIds } from '../application/actorIds';
-import { permissionMonitoringMachine } from '../permissionMonitor.machine';
+import { permissionMonitoringMachine } from '../permission/monitoring/permissionMonitor.machine';
 
 export const systemManagementMachine = setup({
   types: {} as {

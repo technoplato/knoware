@@ -4,7 +4,7 @@ import {
   PermissionStatus,
   PermissionStatuses,
 } from '../../permission.types';
-import { permissionReportingMachine } from '../../permission/permissionReporting/permissionReporting.machine';
+import { permissionReportingMachine } from '../../permission/reporting/permissionReporting.machine';
 
 export const countingMachineThatNeedsPermissionAt3 = setup({
   actors: {

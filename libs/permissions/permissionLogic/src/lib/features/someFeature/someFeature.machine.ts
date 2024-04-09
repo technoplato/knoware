@@ -1,6 +1,6 @@
 import { raise, sendTo, setup } from 'xstate';
-import { permissionReportingMachine } from '../../permission/permissionReporting/permissionReporting.machine';
 import { Permissions } from '../../permission.types';
+import { permissionReportingMachine } from '../../permission/reporting/permissionReporting.machine';
 
 export const someFeatureMachine = setup({
   actors: {
@@ -59,14 +59,14 @@ export const someFeatureMachine = setup({
           ],
         },
       },
-      // invoke: {
-      //   id: 'permissionHandler',
-      //   src: 'permissionReportingMachine',
-      //   input: ({ self }) => ({
-      //     permissions: [Permissions.bluetooth],
-      //     parent: self,
-      //   }),
-      // },
+      invoke: {
+        id: 'permissionHandler',
+        src: 'permissionReportingMachine',
+        input: ({ self }) => ({
+          permissions: [Permissions.bluetooth],
+          parent: self,
+        }),
+      },
     },
   },
 });

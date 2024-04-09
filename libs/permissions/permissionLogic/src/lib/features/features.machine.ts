@@ -7,12 +7,12 @@ export const featuresMachine = setup({
   types: {} as {
     children: {
       [ActorSystemIds.counting]: 'countingMachine';
-      // [ActorSystemIds.someFeature]: 'someFeatureMachine';
+      [ActorSystemIds.someFeature]: 'someFeatureMachine';
     };
   },
   actors: {
     countingMachine: countingMachineThatNeedsPermissionAt3,
-    // someFeatureMachine: someFeatureMachine,
+    someFeatureMachine: someFeatureMachine,
   },
 }).createMachine({
   entry: log('Features started'),
@@ -23,10 +23,10 @@ export const featuresMachine = setup({
       systemId: ActorSystemIds.counting,
       src: 'countingMachine',
     },
-    // {
-    //   id: ActorSystemIds.someFeature,
-    //   systemId: ActorSystemIds.someFeature,
-    //   src: 'someFeatureMachine',
-    // },
+    {
+      id: ActorSystemIds.someFeature,
+      systemId: ActorSystemIds.someFeature,
+      src: 'someFeatureMachine',
+    },
   ],
 });

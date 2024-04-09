@@ -8,19 +8,19 @@ import {
   sendTo,
   setup,
 } from 'xstate';
-import { ActorSystemIds } from './application/actorIds';
-import { stubApplicationLifecycleReportingActorLogic } from './lifecycle/lifecycle.stubs';
-import { InitialPermissionStatusMap } from './permission.fixtures';
+import { ActorSystemIds } from '../../application/actorIds';
+import { stubApplicationLifecycleReportingActorLogic } from '../../lifecycle/lifecycle.stubs';
+import { InitialPermissionStatusMap } from '../../permission.fixtures';
 import {
   Permission,
-  PermissionMonitoringMachineEvents,
-  PermissionStatusMapType,
   Permissions,
+  PermissionStatusMapType,
+} from '../../permission.types';
+import { permissionCheckerAndRequesterMachine } from '../checkAndRequest/permissionCheckAndRequestMachine';
+import {
+  PermissionMonitoringMachineEvents,
   PermissionSubscriberMap,
-} from './permission.types';
-import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
-import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
-import { someFeatureMachine } from './features/someFeature/someFeature.machine';
+} from './permissionMonitor.types';
 
 export const EmptyPermissionSubscriberMap: PermissionSubscriberMap =
   Object.values(Permissions).reduce(

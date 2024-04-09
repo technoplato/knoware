@@ -14,15 +14,14 @@ import {
 } from 'xstate';
 import {
   Permission,
-  PermissionMonitoringMachineEvents,
   Permissions,
   PermissionStatuses,
 } from './permission.types';
-import { permissionCheckerAndRequesterMachine } from './permissionCheckAndRequestMachine';
+import { permissionCheckerAndRequesterMachine } from './permission/checkAndRequest/permissionCheckAndRequestMachine';
 import {
   EmptyPermissionSubscriberMap,
   permissionMonitoringMachine,
-} from './permissionMonitor.machine';
+} from './permission/monitoring/permissionMonitor.machine';
 import { someFeatureMachine } from './features/someFeature/someFeature.machine';
 import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
 import { applicationMachine } from './application/application.machine';
