@@ -1,22 +1,24 @@
 import {
   ActorRef,
+  assertEvent,
   assign,
+  createMachine,
   enqueueActions,
   fromPromise,
   log,
   setup,
   Snapshot,
 } from 'xstate';
-import { unimplementedPermissionMachineActions } from './permission.actions';
-import { InitialPermissionStatusMap } from './permission.fixtures';
+import { unimplementedPermissionCheckAndRequestActions } from './permission.actions';
+import { InitialPermissionStatusMap } from '../../permission.fixtures';
 import {
   Permission,
-  PermissionMachineEvents,
-  PermissionMonitoringMachineEvents,
   Permissions,
   PermissionStatus,
   PermissionStatusMapType,
-} from './permission.types';
+} from '../../permission.types';
+import { PermissionMachineEvents } from './permissionCheckAndRequest.types';
+import { PermissionMonitoringMachineEvents } from '../monitoring/permissionMonitor.types';
 
 export const permissionCheckerAndRequesterMachine = setup({
   types: {
@@ -24,7 +26,8 @@ export const permissionCheckerAndRequesterMachine = setup({
       parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
       statuses: PermissionStatusMapType;
     },
-    events: {} as PermissionMachineEvents,
+    // events: {} as PermissionMachineEvents,
+    // events : {} as PermissionCheckerAndRequesterMachineEvents,
     input: {} as {
       parent?: ActorRef<Snapshot<unknown>, PermissionMonitoringMachineEvents>;
     },
@@ -48,23 +51,23 @@ export const permissionCheckerAndRequesterMachine = setup({
       statuses: ({ context, event }) => {
         return {
           ...context.statuses,
-          // @ts-expect-error TODO how do I type these actions?
           [event.output.permission]: event.output.status,
         };
       },
     }),
 
     savePermissionCheckResult: assign({
-      // @ts-expect-error TODO how do I type these actions?
-      statuses: ({ event }) => event.output,
+      statuses: (_, { statuses }: { statuses: PermissionStatusMapType }) => {
+        return statuses;
+      },
     }),
   },
 
   actors: {
-    checkAllPermissions: fromPromise(async ({ input, self, system }) => {
-      const result =
+    checkAllPermissions: fromPromise(async () => {
+      const result: PermissionStatusMapType =
         // TODO how can i make this implementation more injectable and still ergnomic
-        await unimplementedPermissionMachineActions.checkAllPermissions();
+        await unimplementedPermissionCheckAndRequestActions.checkAllPermissions();
       console.log({ result });
 
       return result;
@@ -85,13 +88,13 @@ export const permissionCheckerAndRequesterMachine = setup({
           case Permissions.bluetooth:
             status =
               // TODO how can i make this implementation more injectable and still ergnomic
-              await unimplementedPermissionMachineActions.requestBluetoothPermission();
+              await unimplementedPermissionCheckAndRequestActions.requestBluetoothPermission();
             break;
 
           case Permissions.microphone:
             status =
               // TODO how can i make this implementation more injectable and still ergnomic
-              await unimplementedPermissionMachineActions.requestMicrophonePermission();
+              await unimplementedPermissionCheckAndRequestActions.requestMicrophonePermission();
             break;
         }
 
@@ -122,8 +125,7 @@ export const permissionCheckerAndRequesterMachine = setup({
     requestingPermission: {
       invoke: {
         src: 'requestPermission',
-        // @ts-expect-error TODO how do I get this type?
-        input: ({ context, event }) => ({ permission: event.permission }),
+        input: ({ event }) => ({ permission: event.permission }),
         onDone: {
           target: 'idle',
           actions: [
@@ -163,7 +165,12 @@ export const permissionCheckerAndRequesterMachine = setup({
           target: 'idle',
           actions: [
             log('child on done checkingPermissions'),
-            'savePermissionCheckResult',
+            {
+              type: 'savePermissionCheckResult',
+              params: ({ event }) => ({
+                statuses: event.output as PermissionStatusMapType,
+              }),
+            },
 
             // This is causing the typescript erro in onDone, but not sure why
             {
@@ -171,7 +178,7 @@ export const permissionCheckerAndRequesterMachine = setup({
               params({ event }) {
                 return {
                   type: 'allPermissionsChecked',
-                  statuses: event.output as PermissionStatusMapType,
+                  statuses: event.output,
                 };
               },
             },
