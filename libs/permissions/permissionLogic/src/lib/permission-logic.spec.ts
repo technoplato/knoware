@@ -3,31 +3,13 @@ import { ActorSystemIds } from './application/actorIds';
 
 import { createSkyInspector } from '@statelyai/inspect';
 import { WebSocket } from 'ws';
-import {
-  ActorSystem,
-  AnyActorRef,
-  createActor,
-  InspectionEvent,
-  log,
-  sendTo,
-  setup,
-  waitFor,
-} from 'xstate';
-import {
-  Permission,
-  Permissions,
-  PermissionStatuses,
-} from './permission.types';
-import { permissionCheckerAndRequesterMachine } from './permission/checkAndRequest/permissionCheckAndRequestMachine';
+import { ActorSystem, createActor, waitFor } from 'xstate';
+import { applicationMachine } from './application/application.machine';
+import { PermissionStatuses, Permissions } from './permission.types';
 import {
   PermissionMonitorActorRef,
-  permissionMonitoringMachine,
   PermissionMonitoringSnapshot,
 } from './permission/monitoring/permissionMonitor.machine';
-import { someFeatureMachine } from './features/someFeature/someFeature.machine';
-import { countingMachineThatNeedsPermissionAt3 } from './features/counting/counting.machine';
-import { applicationMachine } from './application/application.machine';
-import { PermissionReportingActorRef } from './permission/reporting/permissionReporting.machine';
 
 const vLongTime = 1000000000;
 
@@ -56,16 +38,17 @@ describe('Counting Machine That Needs Permission At 3', () => {
 
       const permissionMonitorActor = actorSystem.get(
         ActorSystemIds.permissionMonitoring
-      );
-      // const countingPermissionReporter = actorSystem.get(
-      //   ActorSystemIds.countingPermissionReporter
-      // );
+      )!;
+
       const countingPermissionReporter = applicationActor.system.get(
         'permissionReportingCounting'
       );
 
       // @ts-expect-error this means the actor system type is working as expected
       permissionMonitorActor.getSnapshot().value === 'foo';
+      permissionMonitorActor?.getSnapshot().value.applicationLifecycle ===
+        'applicationInBackground';
+
       // @ts-expect-error this means the actor system type is working as expected
       permissionMonitorActor.getSnapshot().context === 'foo';
 
@@ -77,13 +60,14 @@ describe('Counting Machine That Needs Permission At 3', () => {
       );
 
       const state: PermissionMonitoringSnapshot =
-        permissionMonitorActor.getSnapshot();
+        permissionMonitorActor?.getSnapshot();
 
       console.log({
         v: state.context.permissionSubscribers[Permissions.bluetooth].map(
           (s) => s.id
         ),
       });
+
       expect(
         state.context.permissionSubscribers[Permissions.bluetooth]?.length
       ).toEqual(2);
@@ -91,6 +75,7 @@ describe('Counting Machine That Needs Permission At 3', () => {
       const countingActor = applicationActor.system.get(
         ActorSystemIds.counting
       );
+
       expect(countingActor?.getSnapshot().value).toStrictEqual({
         counting: 'enabled',
         handlingPermissions: {},
@@ -120,7 +105,6 @@ describe('Counting Machine That Needs Permission At 3', () => {
       countingActor.send({ type: 'user.didTapBluetoothRequestPermission' });
 
       await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
-      await new Promise((resolve) => setTimeout(resolve, vLongTime));
 
       expect(countingActor.getSnapshot().value).toStrictEqual({
         counting: 'enabled',
@@ -139,9 +123,11 @@ describe('Counting Machine That Needs Permission At 3', () => {
       expect(countingActor.getSnapshot().value.counting).toStrictEqual(
         'finished'
       );
+      ///* Required for debugging with stately inspector */ await new Promise((resolve) => setTimeout(resolve, vLongTime));
     },
     vLongTime
   );
+
   // vLongTime // prettyMuchForever
 
   //   it('should start in idle state', async () => {

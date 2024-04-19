@@ -1,11 +1,10 @@
-import { assign, log, raise, sendTo, setup } from 'xstate';
+import { assign, raise, sendTo, setup } from 'xstate';
 import {
-  Permissions,
   PermissionStatus,
   PermissionStatuses,
+  Permissions,
 } from '../../permission.types';
 import { permissionReportingMachine } from '../../permission/reporting/permissionReporting.machine';
-import { ActorSystemIds } from '../../application/actorIds';
 
 export const countingMachineThatNeedsPermissionAt3 = setup({
   actors: {
@@ -90,7 +89,17 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
       on: {
         permissionWasRequested: {
           actions: [
-            sendTo('permissionHandler', ({ event }) => {
+            // sendTo(
+            //   ({ system }) => {
+            //     return system.get(ActorSystemIds.permissionCheckerAndRequester);
+            //   },
+            //   ({ event }) => ({
+            //     type: 'triggerPermissionRequest',
+            //     // @ts-expect-error TODO make this type safe
+            //     permission: event.permission,
+            //   })
+            // ),
+            sendTo('permissionReportingCounting', ({ event }) => {
               return {
                 type: 'requestPermission',
                 // @ts-expect-error TODO make this type safe
