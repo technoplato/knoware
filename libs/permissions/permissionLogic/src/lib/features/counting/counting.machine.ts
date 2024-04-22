@@ -11,6 +11,23 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
   actors: {
     permissionReportingMachine,
   },
+
+  actions: {
+    incrementCount: assign({ count: ({ context }) => context.count + 1 }),
+    assignBluetoothStatusGranted: assign({ permissionStatus: 'granted' }),
+    triggerBluetoothPermissionRequest: raise({
+      type: 'permissionWasRequested',
+      permission: Permissions.bluetooth,
+    }),
+  },
+
+  guards: {
+    requiresPermission: ({ context }) =>
+      context.count >= 3 &&
+      context.permissionStatus !== PermissionStatuses.granted,
+    countingCompleted: ({ context }) => context.count >= 5,
+  },
+
   types: {
     context: {} as { count: number; permissionStatus: PermissionStatus },
     events: {} as
@@ -22,7 +39,7 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
         },
   },
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QGMD2BXAdgFwJaagEFMIAFMAJwFtdZZdVNYA6NLPA5sTAQwCMANpADEbHM3zIA2gAYAuolAAHVPTyNFIAB6IA7ACYANCACeiAIwBWc8xl27AZhm6rDpw4C+H42I5ES5NS09IwsvvhQXLyCIr4SmNLmCkggKmoMmJo6CPoAHA7M1pYAbM4AnLoOLpZGpoj61sxllg7mVZbN5gYALLle3iCYqBBwmuEExGSUNHQZ8ClpuOqZKdkAtPrdzMWWuboyZeZlZd1lDsUOxmYIG1v2Mm0uus1l+vpePhg4EZOBMyFMVhfPyaRbLLL1bpXRAXZinY4nCoOMoPGTdYofEDjfxTIKzUJA9gRKL8IQQUGqJYZCEIcz6GyWXTdfQHBo7GrQnI1OEtR4daw9PoDbG-abBOaE76cCC0UmQCnpDSrRA1XLMLplYq5Rn6E7o4qchr6HmtGTWc7dbqtTEigJi-GAgAWPBIAgif3FoQVVKVoGy+gKDm6dJRuTslhkF10nIcuTVEZkbhkuU1Vt0uW6NuBPzteIBLGdrvd9vzEggQm94OVCHT23ZZv2lUeBrqCG6umKtjs+mKums7e6JUzwuzE1z-wlhfLxbzEp4yDwADcwJXqdWXMwgyHk+HI1VOS0tgm8marMdzEKvEA */
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOkwHsBXfAFwKhLH3QCMAbSAYguppIMwBtAAwBdRKAAO5WLjrl8EkAA9EAWgCMATgDMJACw6ArMOE6AbACZLRnVoDs+gDQgAnuq1aSN+wA4Hlhr6hlr6RgC+4S5oWHiEpDy09IzM7Fwi4kgg0rLyilmqCIEaJDoaRhrCGlbGxtUu7kX6JbYVRlYRUSAxOATEZFRJ+AxMrBwQnIIamVIycrgKSoXFpeWV1Za1FeYNiJZaviS+Rkb65r72ndEYvfEDvMkQuLBjXJJgAE6oz7IKJFAfdC0SAkdiUMA0cjkGjYDJKHLzRYFPblEimcwmPz2Lb1NyIYzmEgaS5+DQ2SLXWJ9BKDOjDEhPF5pCbvL4-Bb4BlMXAgsEQqEwuFZBF5JYooxo4QY4RYnE7PEIfRaYSrcldHpxfqJOkMRmvCaUWCfBm4CAAFXQkgAQmxwZDodgAEpgACO4NgNAACp9vrBfvghbNchyxUVUejMRc5bsECdLESdL4qlp2sTzPZzBTujdNTSHvS+faYQARblvH3sv4AoE0Xm2-kOwPZOai5FFbEGYlac6XGMYry2cxhexStMZrMa6n3IYMQsC7Cl-A8g1Gj4m82Wm12+fOt1wL0Vv0cpsikNtywd5r2bsXIwx+yBUrmbQZmqtSwTnNT7BAiBsejemyR4KLAnCsr6-oAOroLAu7urWEAni2Z6gIUSp6OY6LaCcxxBMIzgKloliEhoGxmBmyq+FRkRdPg5AQHASiTvE8LIUiqHqJY-gGMYpgWNYtgOARjRqBeejKjoD7aL46aeCmn5Unc2r0KxwbsSonHNDxJhmFYNh2I4MaaDJJBGEmSbdlhDgKbcWq0skozMqpiL5BxCCaERpRGAcMoOL4F7+L4MaJgYJwWNUxymMRMk2bm046iaTLjM5rZucIMb6NYBj+GZlijhm47ql+Sn2QW9ZFguZYQClKEaQg6UKichIOFo1TNJs76xVOyn0gAZgQzzYJANXqYUDWNOYrUGD2ZwaMcOjCBeXV3D++B-gBh7+vAwpsa5dWaJU3jYoY5TmGU6zCYg-jxqYSpJnYQTeRoNHhEAA */
   type: 'parallel',
   context: {
     count: 0,
@@ -37,21 +54,17 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
           always: [
             {
               target: 'disabled',
-              guard: ({ context }) =>
-                context.count >= 3 &&
-                context.permissionStatus !== PermissionStatuses.granted,
+              guard: 'requiresPermission',
             },
             {
               target: 'finished',
-              guard: ({ context }) => context.count >= 5,
+              guard: 'countingCompleted',
             },
           ],
           on: {
-            'count.inc': [
-              {
-                actions: assign({ count: ({ context }) => context.count + 1 }),
-              },
-            ],
+            'count.inc': {
+              actions: 'incrementCount',
+            },
           },
         },
         disabled: {
@@ -59,17 +72,11 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
           on: {
             'permission.granted.bluetooth': {
               target: 'enabled',
-              actions: [
-                () => console.log('permission granted'),
-                assign({ permissionStatus: PermissionStatuses.granted }),
-              ],
+              actions: 'assignBluetoothStatusGranted',
             },
             'permission.denied.bluetooth': { target: 'bluetoothDenied' },
             'user.didTapBluetoothRequestPermission': {
-              actions: raise({
-                type: 'permissionWasRequested',
-                permission: Permissions.bluetooth,
-              }),
+              actions: 'triggerBluetoothPermissionRequest',
             },
           },
         },
@@ -77,10 +84,7 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
           on: {
             'permission.granted.bluetooth': { target: 'enabled' },
             'user.didTapBluetoothRequestPermission': {
-              actions: raise({
-                type: 'permissionWasRequested',
-                permission: Permissions.bluetooth,
-              }),
+              actions: 'triggerBluetoothPermissionRequest',
             },
           },
         },
