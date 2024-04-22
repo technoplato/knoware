@@ -42,21 +42,46 @@ export const permissionMonitoringMachine = setup({
   actions: {
     assignPermissionCheckResultsToContext: assign({
       permissionsStatuses: ({ event }) => {
-        console.log(JSON.stringify(event, null, 2));
-
         assertEvent(event, 'allPermissionsChecked');
         return event.statuses;
       },
+    }),
+    addSubscriberToSubscribersMap: assign(({ context, event }) => {
+      assertEvent(event, 'subscribeToPermissionStatuses');
+      const { permissions, self: subscriber } = event;
+      const { permissionSubscribers } = context;
+
+      // Create a new permissionSubscribers object to avoid mutating the original
+      const updatedPermissionSubscribers: PermissionSubscriberMap = {
+        ...permissionSubscribers,
+      };
+
+      // Iterate over each permission in the event's permissions array
+      permissions.forEach((permission: Permission) => {
+        // If the permission doesn't exist in the permissionSubscribers map, initialize it as an empty array
+        if (!updatedPermissionSubscribers[permission]) {
+          updatedPermissionSubscribers[permission] = [];
+        }
+
+        // Add the actor to the subscribers list for the permission, ensuring not to add duplicates
+        const actorAlreadySubscribed = updatedPermissionSubscribers[
+          permission
+        ].some((actor) => actor.id === subscriber.id);
+
+        if (!actorAlreadySubscribed) {
+          updatedPermissionSubscribers[permission].push(subscriber);
+        }
+      });
+
+      return {
+        permissionSubscribers: updatedPermissionSubscribers,
+      };
     }),
     broadcastPermissionsToListeners: enqueueActions(
       ({ context, event, enqueue }) => {
         // TODO this should only send permission updates for the recently modified permissions
         // and is currently sending updates to all permissions to everyone
         Object.keys(context.permissionSubscribers).forEach((permission) => {
-          console.log(JSON.stringify({ permission }, null, 2));
-
-          console.log(JSON.stringify(context.permissionsStatuses, null, 2));
-
           context.permissionSubscribers[permission].forEach(
             (actorRef: AnyActorRef) => {
               enqueue.sendTo(actorRef, {
@@ -71,8 +96,6 @@ export const permissionMonitoringMachine = setup({
     ),
     assignPermissionRequestResultToContext: assign({
       permissionsStatuses: ({ event, context }) => {
-        console.log(JSON.stringify(event, null, 2));
-
         assertEvent(event, 'permissionRequestCompleted');
         return {
           ...context.permissionsStatuses,
@@ -86,7 +109,7 @@ export const permissionMonitoringMachine = setup({
     }),
     sendPermissionRequest: sendTo(
       ActorSystemIds.permissionCheckerAndRequester,
-      ({ context, event }) => {
+      ({ event }) => {
         assertEvent(event, 'triggerPermissionRequest');
 
         return {
@@ -108,40 +131,7 @@ export const permissionMonitoringMachine = setup({
   },
   on: {
     subscribeToPermissionStatuses: {
-      actions: assign(({ context, event }) => {
-        const { permissions } = event;
-        const { permissionSubscribers } = context;
-
-        console.log(JSON.stringify({ event }, null, 2));
-
-        // Create a new permissionSubscribers object to avoid mutating the original
-        const updatedPermissionSubscribers: PermissionSubscriberMap = {
-          ...permissionSubscribers,
-        };
-
-        // Iterate over each permission in the event's permissions array
-        permissions.forEach((permission: Permission) => {
-          // If the permission doesn't exist in the permissionSubscribers map, initialize it as an empty array
-          if (!updatedPermissionSubscribers[permission]) {
-            updatedPermissionSubscribers[permission] = [];
-          }
-
-          // Add the actor to the subscribers list for the permission, ensuring not to add duplicates
-          const actorAlreadySubscribed = updatedPermissionSubscribers[
-            permission
-          ].some((actor) => actor.id === event.self.id);
-
-          if (!actorAlreadySubscribed) {
-            updatedPermissionSubscribers[permission].push(event.self);
-          }
-        });
-
-        console.log(JSON.stringify({ updatedPermissionSubscribers }, null, 2));
-
-        return {
-          permissionSubscribers: updatedPermissionSubscribers,
-        };
-      }),
+      actions: 'addSubscriberToSubscribersMap',
     },
   },
   states: {
@@ -173,7 +163,7 @@ export const permissionMonitoringMachine = setup({
     permissions: {
       on: {
         triggerPermissionCheck: {
-          actions: [log('permission trigger check'), 'sendPermissionCheck'],
+          actions: ['sendPermissionCheck'],
         },
 
         allPermissionsChecked: {
@@ -184,14 +174,10 @@ export const permissionMonitoringMachine = setup({
         },
 
         triggerPermissionRequest: {
-          actions: [
-            log('triggering permission request'),
-            'sendPermissionRequest',
-          ],
+          actions: ['sendPermissionRequest'],
         },
         permissionRequestCompleted: {
           actions: [
-            log('this happened'),
             'assignPermissionRequestResultToContext',
             'broadcastPermissionsToListeners',
           ],
@@ -214,5 +200,3 @@ export type PermissionMonitorActorRef = ActorRefFrom<
 export type PermissionMonitoringSnapshot = SnapshotFrom<
   typeof permissionMonitoringMachine
 >;
-const a: PermissionMonitorActorRef = null as any;
-const b: PermissionMonitoringSnapshot = null as any;
