@@ -7,10 +7,11 @@ import {
   sendTo,
   setup,
 } from 'xstate';
-import { Permission, Permissions } from '../../permission.types';
 import { ActorSystemIds } from '../../application/actorIds';
+import { Permission } from '../../permission.types';
 
 export const permissionReportingMachine = setup({
+  // TODO: type these parents to ensure they accept the events we want to send them
   types: {
     input: {} as {
       permissions: Array<Permission>;
@@ -49,12 +50,14 @@ export const permissionReportingMachine = setup({
     ),
   },
 }).createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAYgCcwBHAVzgBcAFMM1XWWXAe3wG0AGALqJQAB04c6XfMJAAPRAFoATADYAnADoA7AFYALDoDMevgb4AOIwBoQAT0QBGPRrVqlai050O3Sh1oBfAJs0LDxCUhFmVnYpAGU6dDpqWABhbHR8GAh+ISQQMQkpGXkEJSUXfzUtByUdHTVzKq0bewQFB0MdDSM6hrUHCzcVJSCQjBwCYg0Ad3RcSSySWVhEujANdAAzdbJkPlJQyYjZ+cWoXJlCheL80r0Wu0RvbvNTFXMVTsMftRUg4IgfCcCBwGRHcLEK7iG7cEqKBytRCGPgqDQOHS6FTGHSWQYqHRjEAQqZEU43LLQopwu6OHRo6p8GqDQw1PTmJRIhBfQwaJlNFHmQzmcx6B4AgJAA */
   description:
     "This actor's job is to report permission statuses to the actors that have invoked it. We abstract away this functionality so that it is reusable by any actor that needs it and so they don't need to know how permissions are checked. This keeps control centralized and easy to modify the behavior of.",
   context: ({ input }) => ({
     permissions: input.permissions,
     parent: input.parent,
   }),
+  id: ActorSystemIds.permissionReporting,
   initial: 'waiting',
   states: {
     waiting: {
@@ -69,12 +72,20 @@ export const permissionReportingMachine = setup({
   },
   on: {
     requestPermission: {
+      description: `
+This event is sent to the permission reporting machine from its parent feature machine.
+
+This will trigger the "real" check whose results will then be sent to the feature
+machine. 
+      `,
       actions: [
         sendTo(
           ({ system }) => {
             return system.get(ActorSystemIds.permissionCheckerAndRequester);
           },
           ({ event }) => ({
+            // TODO: determine how to make this typesafe
+            // I'm thinking an api like sendToPermissionChecker(event: PermissionCheckerEvent)
             type: 'triggerPermissionRequest',
             permission: event.permission,
           })
@@ -84,7 +95,6 @@ export const permissionReportingMachine = setup({
     permissionStatusChanged: {
       description:
         'Whenever the Permission Monitoring machine reports that a permission status has changed, we receive this event and can process and share with our siblings.',
-      // We eventually want to communicate this to the actors that have invoked us
       actions: [
         log(
           ({ event }) =>
@@ -104,18 +114,8 @@ export const permissionReportingMachine = setup({
           type: 'checkedSendParent',
           params({ event }) {
             const { permission, status } = event;
-            if (permission === Permissions.bluetooth && status === 'granted') {
-              console.log('its granted yaya');
-              return {
-                // TODO make these type safe
-                // dynamic
-                type: 'permission.granted.bluetooth',
-              };
-            } else {
-              return {
-                type: 'permission.denied.bluetooth',
-              };
-            }
+            const permissionEventType = `permission.${status}.${permission}`;
+            return { type: permissionEventType };
           },
         },
       ],

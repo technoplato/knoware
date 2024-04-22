@@ -1,5 +1,6 @@
 import { assign, raise, sendTo, setup } from 'xstate';
 import {
+  Permission,
   PermissionStatus,
   PermissionStatuses,
   Permissions,
@@ -12,7 +13,13 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
   },
   types: {
     context: {} as { count: number; permissionStatus: PermissionStatus },
-    events: { type: 'count.inc' },
+    events: {} as
+      | { type: 'count.inc' }
+      | { type: 'permissionWasRequested'; permission: Permission }
+      | {
+          type: 'user.didTapBluetoothRequestPermission';
+          permission: Permission;
+        },
   },
 }).createMachine({
   /** @xstate-layout N4IgpgJg5mDOIC5QGMD2BXAdgFwJaagEFMIAFMAJwFtdZZdVNYA6NLPA5sTAQwCMANpADEbHM3zIA2gAYAuolAAHVPTyNFIAB6IA7ACYANCACeiAIwBWc8xl27AZhm6rDpw4C+H42I5ES5NS09IwsvvhQXLyCIr4SmNLmCkggKmoMmJo6CPoAHA7M1pYAbM4AnLoOLpZGpoj61sxllg7mVZbN5gYALLle3iCYqBBwmuEExGSUNHQZ8ClpuOqZKdkAtPrdzMWWuboyZeZlZd1lDsUOxmYIG1v2Mm0uus1l+vpePhg4EZOBMyFMVhfPyaRbLLL1bpXRAXZinY4nCoOMoPGTdYofEDjfxTIKzUJA9gRKL8IQQUGqJYZCEIcz6GyWXTdfQHBo7GrQnI1OEtR4daw9PoDbG-abBOaE76cCC0UmQCnpDSrRA1XLMLplYq5Rn6E7o4qchr6HmtGTWc7dbqtTEigJi-GAgAWPBIAgif3FoQVVKVoGy+gKDm6dJRuTslhkF10nIcuTVEZkbhkuU1Vt0uW6NuBPzteIBLGdrvd9vzEggQm94OVCHT23ZZv2lUeBrqCG6umKtjs+mKums7e6JUzwuzE1z-wlhfLxbzEp4yDwADcwJXqdWXMwgyHk+HI1VOS0tgm8marMdzEKvEA */
@@ -61,7 +68,6 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
             'user.didTapBluetoothRequestPermission': {
               actions: raise({
                 type: 'permissionWasRequested',
-                // @ts-expect-error TODO make this type safe
                 permission: Permissions.bluetooth,
               }),
             },
@@ -73,7 +79,6 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
             'user.didTapBluetoothRequestPermission': {
               actions: raise({
                 type: 'permissionWasRequested',
-                // @ts-expect-error TODO make this type safe
                 permission: Permissions.bluetooth,
               }),
             },
@@ -89,20 +94,9 @@ export const countingMachineThatNeedsPermissionAt3 = setup({
       on: {
         permissionWasRequested: {
           actions: [
-            // sendTo(
-            //   ({ system }) => {
-            //     return system.get(ActorSystemIds.permissionCheckerAndRequester);
-            //   },
-            //   ({ event }) => ({
-            //     type: 'triggerPermissionRequest',
-            //     // @ts-expect-error TODO make this type safe
-            //     permission: event.permission,
-            //   })
-            // ),
             sendTo('permissionReportingCounting', ({ event }) => {
               return {
                 type: 'requestPermission',
-                // @ts-expect-error TODO make this type safe
                 permission: event.permission,
               };
             }),
