@@ -3,7 +3,6 @@ import {
   AnyActorRef,
   AnyEventObject,
   enqueueActions,
-  log,
   sendTo,
   setup,
 } from 'xstate';
@@ -20,6 +19,10 @@ export const permissionReportingMachine = setup({
     context: {} as {
       permissions: Array<Permission>;
       parent: AnyActorRef;
+    },
+    events: {} as {
+      type: 'requestPermission';
+      permission: Permission;
     },
   },
   actions: {
@@ -40,12 +43,12 @@ export const permissionReportingMachine = setup({
       ({ system }) => {
         return system.get(ActorSystemIds.permissionCheckerAndRequester);
       },
-      ({ event }) => ({
-        // TODO: determine how to make this typesafe
-        // I'm thinking an api like sendToPermissionChecker(event: PermissionCheckerEvent)
-        type: 'triggerPermissionRequest',
-        permission: event.permission,
-      })
+      ({ event }) => {
+        return {
+          type: 'triggerPermissionRequest',
+          permission: event.permission,
+        };
+      }
     ),
     checkedSendParent: enqueueActions(
       ({ context, enqueue }, event: AnyEventObject) => {
@@ -96,8 +99,10 @@ machine.
 `,
     },
     permissionStatusChanged: {
-      description: `Whenever the Permission Monitoring machine reports that a permission 
-  status has changed, we receive this event and can process and share with our siblings.`,
+      description: `
+Whenever the Permission Monitoring machine reports that a permission 
+status has changed, we receive this event and can process and share 
+with the machine in which we are invoked.`,
       actions: [
         {
           /**

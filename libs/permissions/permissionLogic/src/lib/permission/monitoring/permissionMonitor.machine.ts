@@ -4,7 +4,6 @@ import {
   assertEvent,
   assign,
   enqueueActions,
-  log,
   raise,
   sendTo,
   setup,
@@ -77,24 +76,22 @@ export const permissionMonitoringMachine = setup({
         permissionSubscribers: updatedPermissionSubscribers,
       };
     }),
-    broadcastPermissionsToListeners: enqueueActions(
-      ({ context, event, enqueue }) => {
-        // TODO this should only send permission updates for the recently modified permissions
-        // and is currently sending updates to all permissions to everyone
-        Object.keys(context.permissionSubscribers).forEach((permission) => {
-          context.permissionSubscribers[permission].forEach(
-            (actorRef: AnyActorRef) => {
-              enqueue.sendTo(actorRef, {
-                type: 'permissionStatusChanged',
-                permission,
-                status: context.permissionsStatuses[permission],
-              });
-            }
-          );
-        });
-      }
-    ),
-    assignPermissionRequestResultToContext: assign({
+    broadcastPermissionsToListeners: enqueueActions(({ context, enqueue }) => {
+      // TODO this should only send permission updates for the recently modified permissions
+      // and is currently sending updates to all permissions to everyone
+      Object.keys(context.permissionSubscribers).forEach((permission) => {
+        context.permissionSubscribers[permission].forEach(
+          (actorRef: AnyActorRef) => {
+            enqueue.sendTo(actorRef, {
+              type: 'permissionStatusChanged',
+              permission,
+              status: context.permissionsStatuses[permission],
+            });
+          }
+        );
+      });
+    }),
+    savePermissionRequestResult: assign({
       permissionsStatuses: ({ event, context }) => {
         assertEvent(event, 'permissionRequestCompleted');
         return {
@@ -123,7 +120,6 @@ export const permissionMonitoringMachine = setup({
   /** @xstate-layout N4IgpgJg5mDOIC5QCMCWUDSBDAFgVwDssA6LABzIBtUBjLAF1QHsCAZVAMzBoE8bKwAYnJVaDZgQBiTAE5goMpoQiQA2gAYAuolBkmsVIxY6QAD0QBaABwBmdcQCcANicAWKwFY7D165tWAGhAeSwBGf2JQgHYbf3U7J38PACYogF80oLRMXEISEWo6IzZObj4BYQpC8RYAISwaAGsFJQIVCA1tJBA9A2KTcwQLVxjHZISoqz9bcI8gkKHwq0iYmydk9Sso9VdQq2SMrPRsfCJiMjAZAFtUWAMWWGFKSgAFS5u7iVgAYRxuRrUWhMvUMEgGiBsrmSxB2ySsVjcoS8O3Uc2CYSs9lCiSi218DiiHnU6gOmRA2ROeXO71u9wIj3oMnQMBkb2utIkv3+nWB+lBxm6gwsyVCjiRoQcW3iNiivj88zCDhsxBGoXUUQlMQRDg8VkO5OOuTOF3ZnwegkZzMubI+dIASmAAI54OD0HndEH9QWIZLQ4lOKwEgOBqa+tELSHQmW48bhX1rJz6ilGkgm21fQRpjksB3O13fJhXKhgeiArq6Ple0CDGzJVwq2sI6KeDzrcMQjz1zzYkVOGJKvsZMkEJgqeDdZOnLC8vpg71DBzJBwq1K+qFOTa2QLooY2DzLtwIpdwgPJAOJsmTqkFMTFdhcXj8MAz-kEcFDeGiqFRNdnzf+BUhlXYhaw8H8JR2WJXFRJNDSnUgqlvCR7zKJ8ENEIoJAASVgLCpFkeRFGUF8qzMSxbGVb9fw3eEAJ3CwPC-KIlQcJEbFCeN4lgnJ4JvTCWBQx8BHQ6pijw+omhaYiPUrOdq0sVwnGXH8NWJBwHGJCVXEA4VlnUNwnC8RcYy3C8jh4qkszNekSLksiEH2GF-E8fZ3GxSNAJlYhWysCDwkhXZ9yHNIgA */
   id: ActorSystemIds.permissionMonitoring,
   type: 'parallel',
-  entry: log('monitoring started'),
 
   context: {
     permissionsStatuses: InitialPermissionStatusMap,
@@ -178,7 +174,7 @@ export const permissionMonitoringMachine = setup({
         },
         permissionRequestCompleted: {
           actions: [
-            'assignPermissionRequestResultToContext',
+            'savePermissionRequestResult',
             'broadcastPermissionsToListeners',
           ],
         },

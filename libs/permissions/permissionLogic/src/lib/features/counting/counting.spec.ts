@@ -20,105 +20,99 @@ type JESActorSystem = ActorSystem<{
 
 describe('Counting Machine That Needs Permission At 3', () => {
   describe('Actor system tests', () => {
-    it(
-      'should increment count to 3, ask for permission, and continue counting to 5 when permission is granted',
-      async () => {
-        const applicationActor = createActor(applicationMachine, {
-          systemId: ActorSystemIds.application,
-          inspect: createSkyInspector({
-            // @ts-expect-error
-            WebSocket: WebSocket,
-            inspectorType: 'node',
-            autoStart: true,
-          }).inspect,
-        });
-        applicationActor.start();
-        const actorSystem: JESActorSystem = applicationActor.system;
+    it('should increment count to 3, ask for permission, and continue counting to 5 when permission is granted', async () => {
+      const applicationActor = createActor(applicationMachine, {
+        systemId: ActorSystemIds.application,
+        inspect: createSkyInspector({
+          // @ts-expect-error
+          WebSocket: WebSocket,
+          inspectorType: 'node',
+          autoStart: true,
+        }).inspect,
+      });
+      applicationActor.start();
+      const actorSystem: JESActorSystem = applicationActor.system;
 
-        const permissionMonitorActor = actorSystem.get(
-          ActorSystemIds.permissionMonitoring
-        )!;
+      const permissionMonitorActor = actorSystem.get(
+        ActorSystemIds.permissionMonitoring
+      )!;
 
-        const countingPermissionReporter = applicationActor.system.get(
-          'permissionReportingCounting'
+      const countingPermissionReporter = applicationActor.system.get(
+        'permissionReportingCounting'
+      );
+
+      // @ts-expect-error this means the actor system type is working as expected
+      permissionMonitorActor.getSnapshot().value === 'foo';
+      permissionMonitorActor?.getSnapshot().value.applicationLifecycle ===
+        'applicationInBackground';
+
+      // @ts-expect-error this means the actor system type is working as expected
+      permissionMonitorActor.getSnapshot().context === 'foo';
+
+      expect(permissionMonitorActor).toBeDefined();
+      expect(countingPermissionReporter).toBeDefined();
+
+      /* Required due to a bug in the initialization of actor systems*/ await new Promise(
+        (resolve) => setTimeout(resolve, 0)
+      );
+
+      const state: PermissionMonitoringSnapshot =
+        permissionMonitorActor?.getSnapshot();
+
+      // We should be able to find the permission coordinator for the Counting
+      // feature in the Permission Monitor's subscription map
+      const countingMachinePermissionCoordinator =
+        state.context.permissionSubscribers[Permissions.bluetooth]?.some(
+          (subscriber) => subscriber.id === 'permissionReportingCounting'
         );
+      expect(countingMachinePermissionCoordinator).toBeDefined();
 
-        // @ts-expect-error this means the actor system type is working as expected
-        permissionMonitorActor.getSnapshot().value === 'foo';
-        permissionMonitorActor?.getSnapshot().value.applicationLifecycle ===
-          'applicationInBackground';
+      const countingActor = applicationActor.system.get(
+        ActorSystemIds.counting
+      );
 
-        // @ts-expect-error this means the actor system type is working as expected
-        permissionMonitorActor.getSnapshot().context === 'foo';
+      expect(countingActor?.getSnapshot().value).toStrictEqual('enabled');
 
-        expect(permissionMonitorActor).toBeDefined();
-        expect(countingPermissionReporter).toBeDefined();
+      countingActor.send({ type: 'count.inc' });
+      countingActor.send({ type: 'count.inc' });
+      countingActor.send({ type: 'count.inc' });
+      expect(countingActor.getSnapshot().context.count).toBe(3);
+      expect(countingActor.getSnapshot().value).toStrictEqual(
+        'handlingPermissions'
+      );
 
-        /* Required due to a bug in the initialization of actor systems*/ await new Promise(
-          (resolve) => setTimeout(resolve, 0)
-        );
+      countingActor.send({ type: 'count.inc' });
+      expect(countingActor.getSnapshot().context.count).toBe(3);
+      expect(countingActor.getSnapshot().value).toStrictEqual(
+        'handlingPermissions'
+      );
 
-        const state: PermissionMonitoringSnapshot =
-          permissionMonitorActor?.getSnapshot();
+      // Configure the permission actor to grant permission
+      const permissionCheckerActor = applicationActor.system.get(
+        ActorSystemIds.permissionCheckerAndRequester
+      );
 
-        // We should be able to find the permission coordinator for the Counting
-        // feature in the Permission Monitor's subscription map
-        const countingMachinePermissionCoordinator =
-          state.context.permissionSubscribers[Permissions.bluetooth]?.some(
-            (subscriber) => subscriber.id === 'permissionReportingCounting'
-          );
-        expect(countingMachinePermissionCoordinator).toBeDefined();
+      countingActor.send({ type: 'user.didTapBluetoothRequestPermission' });
 
-        const countingActor = applicationActor.system.get(
-          ActorSystemIds.counting
-        );
+      await waitFor(permissionCheckerActor, (state) => state.value === 'idle');
 
-        expect(countingActor?.getSnapshot().value).toStrictEqual('enabled');
+      expect(countingActor.getSnapshot().value).toStrictEqual('enabled');
 
-        countingActor.send({ type: 'count.inc' });
-        countingActor.send({ type: 'count.inc' });
-        countingActor.send({ type: 'count.inc' });
-        expect(countingActor.getSnapshot().context.count).toBe(3);
-        expect(countingActor.getSnapshot().value).toStrictEqual(
-          'handlingPermissions'
-        );
+      expect(countingActor.getSnapshot().context.permissionStatus).toBe(
+        PermissionStatuses.granted
+      );
 
-        countingActor.send({ type: 'count.inc' });
-        expect(countingActor.getSnapshot().context.count).toBe(3);
-        expect(countingActor.getSnapshot().value).toStrictEqual(
-          'handlingPermissions'
-        );
+      // Send 'count.inc' events to increment the count to 5
+      countingActor.send({ type: 'count.inc' });
+      countingActor.send({ type: 'count.inc' });
 
-        // Configure the permission actor to grant permission
-        const permissionCheckerActor = applicationActor.system.get(
-          ActorSystemIds.permissionCheckerAndRequester
-        );
-
-        countingActor.send({ type: 'user.didTapBluetoothRequestPermission' });
-
-        await waitFor(
-          permissionCheckerActor,
-          (state) => state.value === 'idle'
-        );
-
-        expect(countingActor.getSnapshot().value).toStrictEqual('enabled');
-
-        expect(countingActor.getSnapshot().context.permissionStatus).toBe(
-          PermissionStatuses.granted
-        );
-
-        // Send 'count.inc' events to increment the count to 5
-        countingActor.send({ type: 'count.inc' });
-        countingActor.send({ type: 'count.inc' });
-
-        expect(countingActor.getSnapshot().context.count).toBe(5);
-        expect(countingActor.getSnapshot().value).toStrictEqual('finished');
-        countingActor.send({ type: 'count.inc' });
-        expect(countingActor.getSnapshot().context.count).toBe(5);
-        ///* Required for debugging with stately inspector */ await new Promise((resolve) => setTimeout(resolve, vLongTime));
-      },
-      vLongTime
-    );
+      expect(countingActor.getSnapshot().context.count).toBe(5);
+      expect(countingActor.getSnapshot().value).toStrictEqual('finished');
+      countingActor.send({ type: 'count.inc' });
+      expect(countingActor.getSnapshot().context.count).toBe(5);
+      // /* Required if you want to debug a test with the stately inspector */ await new Promise((resolve) => setTimeout(resolve, vLongTime));
+    });
+    // vLongTime
   });
 
   describe('Actor unit tests', () => {
