@@ -16,13 +16,13 @@ import { InitialPermissionStatusMap } from '../../permission.fixtures';
 import { Permission } from '../../permission.types';
 import { permissionCheckerAndRequesterMachine } from '../checkAndRequest/permissionCheckAndRequestMachine';
 import {
-  PermissionMonitoringMachineEvents,
-  PermissionSubscriberMap,
-} from './permissionMonitor.types';
-import {
   EmptyPermissionSubscriberMap,
   PermissionsMonitoringMachineContext,
 } from './permissionMonitor.fixtures';
+import {
+  PermissionMonitoringMachineEvents,
+  PermissionSubscriberMap,
+} from './permissionMonitor.types';
 
 export const permissionMonitoringMachine = setup({
   types: {} as {
@@ -42,6 +42,8 @@ export const permissionMonitoringMachine = setup({
   actions: {
     assignPermissionCheckResultsToContext: assign({
       permissionsStatuses: ({ event }) => {
+        console.log(JSON.stringify(event, null, 2));
+
         assertEvent(event, 'allPermissionsChecked');
         return event.statuses;
       },
@@ -51,6 +53,10 @@ export const permissionMonitoringMachine = setup({
         // TODO this should only send permission updates for the recently modified permissions
         // and is currently sending updates to all permissions to everyone
         Object.keys(context.permissionSubscribers).forEach((permission) => {
+          console.log(JSON.stringify({ permission }, null, 2));
+
+          console.log(JSON.stringify(context.permissionsStatuses, null, 2));
+
           context.permissionSubscribers[permission].forEach(
             (actorRef: AnyActorRef) => {
               enqueue.sendTo(actorRef, {
@@ -65,6 +71,8 @@ export const permissionMonitoringMachine = setup({
     ),
     assignPermissionRequestResultToContext: assign({
       permissionsStatuses: ({ event, context }) => {
+        console.log(JSON.stringify(event, null, 2));
+
         assertEvent(event, 'permissionRequestCompleted');
         return {
           ...context.permissionsStatuses,
@@ -104,6 +112,8 @@ export const permissionMonitoringMachine = setup({
         const { permissions } = event;
         const { permissionSubscribers } = context;
 
+        console.log(JSON.stringify({ event }, null, 2));
+
         // Create a new permissionSubscribers object to avoid mutating the original
         const updatedPermissionSubscribers: PermissionSubscriberMap = {
           ...permissionSubscribers,
@@ -125,6 +135,8 @@ export const permissionMonitoringMachine = setup({
             updatedPermissionSubscribers[permission].push(event.self);
           }
         });
+
+        console.log(JSON.stringify({ updatedPermissionSubscribers }, null, 2));
 
         return {
           permissionSubscribers: updatedPermissionSubscribers,

@@ -1,0 +1,10 @@
+Feature needs to control
+
+in what state permission is required
+when the thing is actually requeted
+
+
+
+Prereq machine needs to control
+subscribe to permission updates from permission monitor machine
+checking and updating its own context / context of the parent with up to pre req statuses

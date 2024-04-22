@@ -50,7 +50,7 @@ export const permissionReportingMachine = setup({
     ),
   },
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAYgCcwBHAVzgBcAFMM1XWWXAe3wG0AGALqJQAB04c6XfMJAAPRAFoATADYAnADoA7AFYALDoDMevgb4AOIwBoQAT0QBGPRrVqlai050O3Sh1oBfAJs0LDxCUhFmVnYpAGU6dDpqWABhbHR8GAh+ISQQMQkpGXkEJSUXfzUtByUdHTVzKq0bewQFB0MdDSM6hrUHCzcVJSCQjBwCYg0Ad3RcSSySWVhEujANdAAzdbJkPlJQyYjZ+cWoXJlCheL80r0Wu0RvbvNTFXMVTsMftRUg4IgfCcCBwGRHcLEK7iG7cEqKBytRCGPgqDQOHS6FTGHSWQYqHRjEAQqZEU43LLQopwu6OHRo6p8GqDQw1PTmJRIhBfQwaJlNFHmQzmcx6B4AgJAA */
+  /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAYgCcwBHAVzgBcAFMM1XWWXAe3wG0AGALqJQAB04c6XfMJAAPRAFoATADYAnADoA7AFYALDoDMevgb4AOIwBoQAT0QBGPRrVqlai050O3Sh1oBfAJs0LDxCUhFmVnYpAGU6dDpqWABhbHR8GAh+ISQQMQkpGXkEQ3NNFRU+NX8+U3M+LS09G3sEZXMNbz4dJX0DPS1LJyCQjBwCYg0Ad3RcSSySWVhEujANdAAzdbJkPlJQyYjZ+cWoXJlCheL80qG2xG8dDUa9FXMVB0MfwzUVILBED4TgQOAyI7hYhXcQ3bglRQOR5lPgqDQOHS6HT6PzqIxjECQqZEU43LIworwu6OHRotRaJoOBx8QxaJzmJTIr6GDRNczfCzlcx6IaAgJAA */
   description:
     "This actor's job is to report permission statuses to the actors that have invoked it. We abstract away this functionality so that it is reusable by any actor that needs it and so they don't need to know how permissions are checked. This keeps control centralized and easy to modify the behavior of.",
   context: ({ input }) => ({
@@ -114,7 +114,11 @@ machine.
           type: 'checkedSendParent',
           params({ event }) {
             const { permission, status } = event;
-            const permissionEventType = `permission.${status}.${permission}`;
+            console.log(JSON.stringify(event, null, 2));
+
+            const permissionEventType = `permissions.${permission}.${status}`;
+            console.log(JSON.stringify(permissionEventType, null, 2));
+
             return { type: permissionEventType };
           },
         },

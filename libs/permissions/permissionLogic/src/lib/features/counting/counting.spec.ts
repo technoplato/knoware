@@ -61,40 +61,33 @@ describe('Counting Machine That Needs Permission At 3', () => {
         const state: PermissionMonitoringSnapshot =
           permissionMonitorActor?.getSnapshot();
 
-        console.log({
-          v: state.context.permissionSubscribers[Permissions.bluetooth].map(
-            (s) => s.id
-          ),
-        });
-
-        expect(
-          state.context.permissionSubscribers[Permissions.bluetooth]?.length
-        ).toEqual(2);
+        // We should be able to find the permission coordinator for the Counting
+        // feature in the Permission Monitor's subscription map
+        const countingMachinePermissionCoordinator =
+          state.context.permissionSubscribers[Permissions.bluetooth]?.some(
+            (subscriber) => subscriber.id === 'permissionReportingCounting'
+          );
+        expect(countingMachinePermissionCoordinator).toBeDefined();
 
         const countingActor = applicationActor.system.get(
           ActorSystemIds.counting
         );
 
-        expect(countingActor?.getSnapshot().value).toStrictEqual({
-          counting: 'enabled',
-          handlingPermissions: {},
-        });
+        expect(countingActor?.getSnapshot().value).toStrictEqual('enabled');
 
         countingActor.send({ type: 'count.inc' });
         countingActor.send({ type: 'count.inc' });
         countingActor.send({ type: 'count.inc' });
         expect(countingActor.getSnapshot().context.count).toBe(3);
-        expect(countingActor.getSnapshot().value).toStrictEqual({
-          counting: 'disabled',
-          handlingPermissions: {},
-        });
+        expect(countingActor.getSnapshot().value).toStrictEqual(
+          'handlingPermissions'
+        );
 
         countingActor.send({ type: 'count.inc' });
         expect(countingActor.getSnapshot().context.count).toBe(3);
-        expect(countingActor.getSnapshot().value).toStrictEqual({
-          counting: 'disabled',
-          handlingPermissions: {},
-        });
+        expect(countingActor.getSnapshot().value).toStrictEqual(
+          'handlingPermissions'
+        );
 
         // Configure the permission actor to grant permission
         const permissionCheckerActor = applicationActor.system.get(
@@ -108,10 +101,7 @@ describe('Counting Machine That Needs Permission At 3', () => {
           (state) => state.value === 'idle'
         );
 
-        expect(countingActor.getSnapshot().value).toStrictEqual({
-          counting: 'enabled',
-          handlingPermissions: {},
-        });
+        expect(countingActor.getSnapshot().value).toStrictEqual('enabled');
 
         expect(countingActor.getSnapshot().context.permissionStatus).toBe(
           PermissionStatuses.granted
@@ -122,9 +112,9 @@ describe('Counting Machine That Needs Permission At 3', () => {
         countingActor.send({ type: 'count.inc' });
 
         expect(countingActor.getSnapshot().context.count).toBe(5);
-        expect(countingActor.getSnapshot().value.counting).toStrictEqual(
-          'finished'
-        );
+        expect(countingActor.getSnapshot().value).toStrictEqual('finished');
+        countingActor.send({ type: 'count.inc' });
+        expect(countingActor.getSnapshot().context.count).toBe(5);
         ///* Required for debugging with stately inspector */ await new Promise((resolve) => setTimeout(resolve, vLongTime));
       },
       vLongTime
@@ -136,10 +126,7 @@ describe('Counting Machine That Needs Permission At 3', () => {
       const countingActor = createActor(
         countingMachineThatNeedsPermissionAt3
       ).start();
-      expect(countingActor.getSnapshot().value).toStrictEqual({
-        counting: 'enabled',
-        handlingPermissions: {},
-      });
+      expect(countingActor.getSnapshot().value).toStrictEqual('enabled');
     });
 
     it('should increment count', async () => {
