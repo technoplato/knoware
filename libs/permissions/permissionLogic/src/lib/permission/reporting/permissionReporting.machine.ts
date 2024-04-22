@@ -36,6 +36,17 @@ export const permissionReportingMachine = setup({
         self,
       })
     ),
+    sendTriggerPermissionRequest: sendTo(
+      ({ system }) => {
+        return system.get(ActorSystemIds.permissionCheckerAndRequester);
+      },
+      ({ event }) => ({
+        // TODO: determine how to make this typesafe
+        // I'm thinking an api like sendToPermissionChecker(event: PermissionCheckerEvent)
+        type: 'triggerPermissionRequest',
+        permission: event.permission,
+      })
+    ),
     checkedSendParent: enqueueActions(
       ({ context, enqueue }, event: AnyEventObject) => {
         if (!context.parent) {
@@ -51,8 +62,12 @@ export const permissionReportingMachine = setup({
   },
 }).createMachine({
   /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAYgCcwBHAVzgBcAFMM1XWWXAe3wG0AGALqJQAB04c6XfMJAAPRAFoATADYAnADoA7AFYALDoDMevgb4AOIwBoQAT0QBGPRrVqlai050O3Sh1oBfAJs0LDxCUhFmVnYpAGU6dDpqWABhbHR8GAh+ISQQMQkpGXkEQ3NNFRU+NX8+U3M+LS09G3sEZXMNbz4dJX0DPS1LJyCQjBwCYg0Ad3RcSSySWVhEujANdAAzdbJkPlJQyYjZ+cWoXJlCheL80qG2xG8dDUa9FXMVB0MfwzUVILBED4TgQOAyI7hYhXcQ3bglRQOR5lPgqDQOHS6HT6PzqIxjECQqZEU43LIworwu6OHRotRaJoOBx8QxaJzmJTIr6GDRNczfCzlcx6IaAgJAA */
-  description:
-    "This actor's job is to report permission statuses to the actors that have invoked it. We abstract away this functionality so that it is reusable by any actor that needs it and so they don't need to know how permissions are checked. This keeps control centralized and easy to modify the behavior of.",
+  description: `
+This actor's job is to report permission statuses to the actors that have invoked it. 
+We abstract away this functionality so that it is reusable by any actor that needs it 
+and so they don't need to know how permissions are checked. This keeps control 
+centralized and easy to modify the behavior of.
+`,
   context: ({ input }) => ({
     permissions: input.permissions,
     parent: input.parent,
@@ -72,35 +87,18 @@ export const permissionReportingMachine = setup({
   },
   on: {
     requestPermission: {
+      actions: ['sendTriggerPermissionRequest'],
       description: `
 This event is sent to the permission reporting machine from its parent feature machine.
 
 This will trigger the "real" check whose results will then be sent to the feature
 machine. 
-      `,
-      actions: [
-        sendTo(
-          ({ system }) => {
-            return system.get(ActorSystemIds.permissionCheckerAndRequester);
-          },
-          ({ event }) => ({
-            // TODO: determine how to make this typesafe
-            // I'm thinking an api like sendToPermissionChecker(event: PermissionCheckerEvent)
-            type: 'triggerPermissionRequest',
-            permission: event.permission,
-          })
-        ),
-      ],
+`,
     },
     permissionStatusChanged: {
-      description:
-        'Whenever the Permission Monitoring machine reports that a permission status has changed, we receive this event and can process and share with our siblings.',
+      description: `Whenever the Permission Monitoring machine reports that a permission 
+  status has changed, we receive this event and can process and share with our siblings.`,
       actions: [
-        log(
-          ({ event }) =>
-            event.permission + ' status <<<changed' + ' to ' + event.status
-        ),
-
         {
           /**
            * I tried putting this action in the actions in setup as reportPermissionRequestResult
@@ -114,11 +112,7 @@ machine.
           type: 'checkedSendParent',
           params({ event }) {
             const { permission, status } = event;
-            console.log(JSON.stringify(event, null, 2));
-
             const permissionEventType = `permissions.${permission}.${status}`;
-            console.log(JSON.stringify(permissionEventType, null, 2));
-
             return { type: permissionEventType };
           },
         },
