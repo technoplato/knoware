@@ -1,0 +1,8 @@
+{
+  "name": "nav-xstate-case-study",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/case-studies/nav-xstate/src",
+  "projectType": "application",
+  "targets": {},
+  "tags": []
+}
